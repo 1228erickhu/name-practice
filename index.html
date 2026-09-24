@@ -250,6 +250,8 @@ fieldset:disabled legend{opacity:.5}
       <label class="check"><input type="checkbox" id="strokes" checked> 加入筆順示範</label>
       <p class="hint">每個字前面會一筆一筆畫出筆順，資料來自教育部常用國字標準字體筆順學習網（g0v 整理）。</p>
       <p class="hint" id="strokeMsg" role="status"></p>
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="onlyDiagram"> 只印彩色筆順示範字</label>
+      <p class="hint">勾選後，練習紙只會出現大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，沒有字帖格子。</p>
     </div>
 
     <div class="field">
@@ -342,7 +344,7 @@ fieldset:disabled legend{opacity:.5}
   const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -513,6 +515,33 @@ fieldset:disabled legend{opacity:.5}
     const k = S * frac / d.box.size;
     return { k, ox: x + S/2 - d.box.cx * k, oy: y + S/2 - d.box.cy * k };
   }
+  /* 只印彩色筆順示範字：每頁 2 欄 × 2 列的大字 */
+  function diagramPages(chars){
+    const lc = LINE[state.lineColor], uniq = [...new Set(chars)];
+    const gap = 10, D = Math.min((CW - gap) / 2, (availH() - 2 * 16) / 2), capH = 14;
+    const perPage = 2 * Math.max(1, Math.floor(availH() / (D + capH)));
+    const x0 = M + (CW - (2 * D + gap)) / 2;
+    const pages = [];
+    for (let p = 0; p * perPage < uniq.length; p++){
+      let body = '';
+      uniq.slice(p * perPage, (p + 1) * perPage).forEach((c, i) => {
+        const x = x0 + (i % 2) * (D + gap), y = top() + 2 + Math.floor(i / 2) * (D + capH);
+        const d = strokeData[c];
+        if (d && d.paths){
+          body += drawDiagram(d, x, y, D, lc);
+          body += `<text x="${n(x + D/2)}" y="${n(y + D + 7)}" font-size="5.2" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">「${esc(c)}」共 ${d.paths.length} 畫${state.zhuyin[c] ? '　' + esc(state.zhuyin[c]) : ''}</text>`;
+        } else {
+          const msg = d === 'loading' || d === undefined ? '筆順資料載入中…' : '查不到筆順資料';
+          body += `<rect x="${n(x)}" y="${n(y)}" width="${n(D)}" height="${n(D)}" fill="none" stroke="${lc}" stroke-width="0.35"/>`+
+            `<text x="${n(x + D/2)}" y="${n(y + D/2)}" font-size="${n(D*0.5)}" font-family="${KAI}" fill="#E1E4E2" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`+
+            `<text x="${n(x + D/2)}" y="${n(y + D + 7)}" font-size="4.4" font-family="${KAI}" fill="#999" text-anchor="middle" dominant-baseline="central">「${esc(c)}」${msg}</text>`;
+        }
+      });
+      pages.push(body);
+    }
+    return pages.length ? pages : [''];
+  }
+
   function drawDiagram(d, x, y, D, lc){
     const F = fit(d, x, y, D, 0.8), k = F.k;
     const X = v => F.ox + v * k, Y = v => F.oy + v * k;
@@ -991,7 +1020,7 @@ fieldset:disabled legend{opacity:.5}
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
     if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
-    strokeChars = (state.strokes && state.content !== 'bpmf') ? cjkList : [];
+    strokeChars = ((state.strokes || state.onlyDiagram) && state.content !== 'bpmf') ? cjkList : [];
     strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
     strokeStatus();
     cjkList.forEach(c => { if (!(c in dictData)) loadDict(c); });
@@ -1009,9 +1038,9 @@ fieldset:disabled legend{opacity:.5}
     } else if (latin){
       bodies = latinPages(raw.replace(/\s+/g,' '));
     } else {
-      bodies = cjkPages([...raw].filter(c => c.trim()));
+      bodies = state.onlyDiagram ? diagramPages([...raw].filter(c => c.trim())) : cjkPages([...raw].filter(c => c.trim()));
     }
-    const title = raw ? `${raw} 的${!latin && state.content === 'bpmf' ? '注音' : '寫字'}練習` : '';
+    const title = raw ? `${raw} 的${!latin && state.onlyDiagram ? '筆順' : '寫字'}練習` : '';
     preview.innerHTML = bodies.map((b, i) =>
       `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
       `<rect width="${W}" height="${H}" fill="#fff"/>${raw && !waiting.length ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
@@ -1040,6 +1069,8 @@ fieldset:disabled legend{opacity:.5}
   });
   const stk = document.getElementById('strokes');
   stk.addEventListener('change', () => { state.strokes = stk.checked; schedule(); });
+  const odg = document.getElementById('onlyDiagram');
+  odg.addEventListener('change', () => { state.onlyDiagram = odg.checked; imgCache.clear(); schedule(); });
   const hdr = document.getElementById('header');
   hdr.addEventListener('change', () => { state.header = hdr.checked; schedule(); });
 
