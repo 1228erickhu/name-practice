@@ -251,7 +251,7 @@ fieldset:disabled legend{opacity:.5}
       <p class="hint">每個字前面會一筆一筆畫出筆順，資料來自教育部常用國字標準字體筆順學習網（g0v 整理）。</p>
       <p class="hint" id="strokeMsg" role="status"></p>
       <label class="check" style="margin-top:6px"><input type="checkbox" id="progressive"> 字帖逐格加筆畫（新功能）</label>
-      <p class="hint">勾選後，下面字帖的描寫格會照筆順一格一筆：第 1 格寫第 1 筆、第 2 格加上第 2 筆……最後一格完成整個字。已經寫過的筆畫會上顏色，這一格要寫的筆畫是淺灰色，並有彩色箭頭指出方向。需要時再勾選，不勾選就是原本的字帖。</p>
+      <p class="hint">勾選後，下面字帖的描寫格會照筆順一格一筆：第 1 格寫第 1 筆、第 2 格加上第 2 筆……最後一格完成整個字。已經寫過的筆畫會上顏色，這一格要寫的筆畫是淺灰色，並有彩色箭頭指出方向。這個模式不顯示大的筆順示範圖。需要時再勾選，不勾選就是原本的字帖。</p>
     </div>
 
     <div class="field">
@@ -588,6 +588,8 @@ fieldset:disabled legend{opacity:.5}
 
   function drawStrip(c, x0, y, sb, slw, scols, lc, D, noBoxes){
     const d = strokeData[c];
+    if (noBoxes)
+      return `<text x="${n(x0)}" y="${n(y + 1)}" font-size="3.6" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，一格加一筆，照著箭頭的方向寫。</text>`;
     let g = drawDiagram(d, x0, y, D, lc) +
       `<text x="${n(x0 + slw)}" y="${n(y + (noBoxes ? 1 : Math.ceil(d.paths.length / scols) * sb + 1))}" font-size="3.4" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，照著數字和箭頭的方向寫。</text>`;
     if (noBoxes) return g;
@@ -622,7 +624,7 @@ fieldset:disabled legend{opacity:.5}
       const d = useStrokes && strokeData[c];
       if (!(d && d.paths)) return null;
       const noBoxes = isProg(c);
-      return { type:'strip', c, noBoxes, h: 2 + (noBoxes ? D : Math.max(D, Math.ceil(d.paths.length / scols) * sb + 6)) + 4 };
+      return { type:'strip', c, noBoxes, h: noBoxes ? 9 : 2 + Math.max(D, Math.ceil(d.paths.length / scols) * sb + 6) + 4 };
     };
     function isProg(c){
       const d = state.progressive && state.strokes && mode !== 'bpmf' && state.layout === 'char' && strokeData[c];
