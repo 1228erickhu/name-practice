@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>寫名字練習紙</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Iansui&family=Andika:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#E4ECE6; --panel:#FFFFFF; --ink:#1F2A25; --muted:#5C6B64;
+  --grid:#3E9A6A; --grid-soft:#D3E6D9; --pencil:#F2C744; --pencil-ink:#2A2413; --line:#D2DCD5;
+  --kai:'Iansui','TW-Kai','BiauKai','DFKai-SB','標楷體',serif;
+  --sans:system-ui,-apple-system,'PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#101814; --panel:#18231D; --ink:#E4EDE8; --muted:#9AABA2;
+    --grid:#6CC596; --grid-soft:#26382E; --line:#2B3A32;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#101814; --panel:#18231D; --ink:#E4EDE8; --muted:#9AABA2;
+  --grid:#6CC596; --grid-soft:#26382E; --line:#2B3A32;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
+body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--sans);line-height:1.6}
+
+.top{max-width:1180px;margin:0 auto;padding:28px 20px 8px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 28px}
+.title{display:flex;gap:6px;margin:0;font-family:var(--kai);font-weight:700;font-size:44px;line-height:1}
+.title span{position:relative;width:64px;height:64px;display:grid;place-items:center;border:2px solid var(--grid);background:var(--panel)}
+.title span::before,.title span::after{content:"";position:absolute;border-color:var(--grid);opacity:.45}
+.title span::before{left:50%;top:0;bottom:0;border-left:1.5px dashed}
+.title span::after{top:50%;left:0;right:0;border-top:1.5px dashed}
+.title span b{position:relative;z-index:1;font-weight:700}
+.title span.t{color:transparent;-webkit-text-stroke:1.5px var(--grid)}
+.title span.g{color:var(--grid-soft)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .title span.g{color:#3E5A4A}}
+:root[data-theme="dark"] .title span.g{color:#3E5A4A}
+.top p{margin:0 0 4px;color:var(--muted);max-width:40ch}
+
+.layout{max-width:1180px;margin:0 auto;padding:16px 20px 40px;display:grid;grid-template-columns:320px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:1fr}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px;position:sticky;top:calc(16px + env(safe-area-inset-top,0px))}
+@media (max-width:820px){.panel{position:static}}
+.field{display:flex;flex-direction:column;gap:6px;border:0;margin:0;padding:0;min-width:0}
+.field>label,.field>legend{font-weight:600;font-size:15px;padding:0}
+.hint{font-size:13px;color:var(--muted);margin:0}
+input[type=text]{font-family:var(--kai);font-size:26px;padding:8px 12px;border:2px solid var(--grid);border-radius:8px;background:var(--panel);color:var(--ink);width:100%}
+input[type=text]:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:inline-block;padding:6px 12px;border:1.5px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;user-select:none}
+.seg input:checked+span{background:var(--grid);border-color:var(--grid);color:var(--panel);font-weight:600}
+.seg input:focus-visible+span{outline:3px solid var(--pencil);outline-offset:2px}
+fieldset:disabled .seg span{opacity:.4;cursor:not-allowed}
+fieldset:disabled legend{opacity:.5}
+
+.range{display:flex;align-items:center;gap:12px}
+.range input{flex:1;accent-color:var(--grid)}
+.range output{font-variant-numeric:tabular-nums;min-width:2.5em;text-align:right;font-weight:600}
+
+.check{display:flex;align-items:center;gap:8px;font-size:15px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--grid)}
+
+.checks{display:flex;flex-wrap:wrap;gap:10px}
+.ck{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 10px 8px;border:1.5px solid var(--line);border-radius:10px;min-width:92px}
+.ck.ok{border-color:var(--grid);background:color-mix(in srgb,var(--grid) 8%,transparent)}
+.ck .g{position:relative;width:64px;height:64px;display:grid;place-items:center;font-size:50px;line-height:1;border:1.5px solid var(--grid);background:#fff;color:#1D1F1E}
+.ck .g::before,.ck .g::after{content:"";position:absolute;border-color:var(--grid);opacity:.4}
+.ck .g::before{left:50%;top:0;bottom:0;border-left:1px dashed}
+.ck .g::after{top:50%;left:0;right:0;border-top:1px dashed}
+.ck .g span{position:relative;z-index:1}
+.ck a{font-size:13px;color:var(--grid);font-weight:600}
+.ck a:focus-visible,.ck button:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.ck button{appearance:none;font:600 13px var(--sans);padding:4px 10px;border-radius:999px;border:1.5px solid var(--grid);background:transparent;color:var(--grid);cursor:pointer}
+.ck.ok button{background:var(--grid);color:var(--panel)}
+.ck .zy{width:92px;font:22px var(--kai);text-align:center;padding:4px 6px;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.ck .zy.bad{border-color:#D65A4A}
+.ck .zy:focus-visible{outline:3px solid var(--pencil);outline-offset:1px}
+.ck button:disabled{opacity:.4;cursor:not-allowed}
+.zytools{display:flex;flex-direction:column;gap:8px}
+.kp{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.kp button{appearance:none;font:18px var(--kai);padding:6px 0;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
+.kp button:hover{border-color:var(--grid)}
+.kp button:focus-visible{outline:3px solid var(--pencil);outline-offset:1px}
+.kp .tone{color:var(--grid);font-weight:700}
+.kp .wide{grid-column:span 2;font:600 14px var(--sans)}
+.auto{appearance:none;font:600 14px var(--sans);padding:8px 12px;border-radius:8px;border:1.5px dashed var(--grid);background:transparent;color:var(--grid);cursor:pointer;align-self:flex-start}
+.auto:disabled{opacity:.5;cursor:wait}
+.auto:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.print:disabled{background:var(--line);color:var(--muted);box-shadow:none;cursor:not-allowed}
+.status{font-size:14px;margin:0;font-weight:600;color:var(--muted)}
+.status.ready{color:var(--grid)}
+.print{appearance:none;border:0;border-radius:10px;background:var(--pencil);color:var(--pencil-ink);font:700 18px var(--sans);padding:14px;cursor:pointer;box-shadow:0 3px 0 #C79E1E}
+.print:hover{filter:brightness(1.04)}
+.print:active{transform:translateY(2px);box-shadow:0 1px 0 #C79E1E}
+.print:focus-visible{outline:3px solid var(--grid);outline-offset:3px}
+.tips{font-size:13px;color:var(--muted);margin:0;padding-left:1.2em}
+.tips li+li{margin-top:2px}
+
+.preview{display:flex;flex-direction:column;gap:18px;align-items:center;min-width:0}
+.sheet{width:100%;max-width:760px}
+.sheet svg{display:block;width:100%;height:auto;background:#fff;box-shadow:0 1px 2px rgba(20,40,30,.12),0 8px 24px rgba(20,40,30,.10)}
+.sheet .num{font-size:13px;color:var(--muted);text-align:center;margin-top:6px}
+
+@page{size:A4;margin:0}
+@media print{
+  :root{padding:0}
+  body{background:#fff}
+  .top,.panel,.sheet .num{display:none!important}
+  .layout{display:block;padding:0;max-width:none}
+  .preview{display:block}
+  .sheet{max-width:none;width:210mm;break-after:page;page-break-after:always}
+  .sheet:last-child{break-after:auto;page-break-after:auto}
+  .sheet svg{width:210mm;height:297mm;box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1 class="title" aria-label="寫名字">
+    <span><b>寫</b></span><span class="t"><b>名</b></span><span class="g"><b>字</b></span>
+  </h1>
+  <p>輸入名字、選好格子，就能印出一張描字練習紙。</p>
+</header>
+
+<main class="layout">
+  <aside class="panel" aria-label="練習紙設定">
+    <div class="field">
+      <label for="name">名字</label>
+      <input type="text" id="name" value="王小明" maxlength="12" autocomplete="off" spellcheck="false">
+      <p class="hint" id="modeHint">中文字會放在格子裡；英文名字會改用四線格。</p>
+    </div>
+
+    <fieldset class="field" id="fontSet">
+      <legend>字體</legend>
+      <div class="seg">
+        <label><input type="radio" name="font" value="iansui" checked><span>芫荽（硬筆楷書）</span></label>
+        <label><input type="radio" name="font" value="biaukai" id="fontBiau"><span>標楷體（電腦內建）</span></label>
+      </div>
+      <p class="hint" id="fontHint">兩種字體都依照教育部標準字體設計。</p>
+    </fieldset>
+
+    <fieldset class="field" id="contentSet">
+      <legend>練習內容</legend>
+      <div class="seg">
+        <label><input type="radio" name="content" value="char" checked><span>國字</span></label>
+        <label><input type="radio" name="content" value="charbpmf"><span>國字＋注音</span></label>
+        <label><input type="radio" name="content" value="bpmf"><span>注音</span></label>
+      </div>
+      <p class="hint" id="contentHint">「注音」會把每個字的注音直著寫，右邊一小欄寫聲調。</p>
+    </fieldset>
+
+    <div class="field" id="checkField">
+      <span style="font-weight:600;font-size:15px">對照國語小字典</span>
+      <p class="hint" id="checkHint">點「查字典」打開教育部國語小字典，確認筆畫和這裡一樣，再按「字形正確」。全部確認後才能列印。</p>
+      <div class="checks" id="checks"></div>
+      <div id="zyTools" class="zytools" hidden>
+        <button type="button" class="auto" id="autoZy" hidden>請 Claude 先填注音</button>
+        <p class="hint" id="autoMsg" role="status"></p>
+        <div class="kp" id="kp" aria-label="注音鍵盤"></div>
+      </div>
+    </div>
+
+    <fieldset class="field" id="gridSet">
+      <legend>格線</legend>
+      <div class="seg">
+        <label><input type="radio" name="grid" value="tian" checked><span>田字格</span></label>
+        <label><input type="radio" name="grid" value="mi"><span>米字格</span></label>
+        <label><input type="radio" name="grid" value="jiu"><span>九宮格</span></label>
+        <label><input type="radio" name="grid" value="plain"><span>方格</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field" id="layoutSet">
+      <legend>排列方式</legend>
+      <div class="seg">
+        <label><input type="radio" name="layout" value="char" checked><span>一行練一個字</span></label>
+        <label><input type="radio" name="layout" value="name"><span>一行寫整個名字</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label for="trace">每行描寫幾次</label>
+      <div class="range"><input type="range" id="trace" min="0" max="10" value="4"><output id="traceOut">4</output></div>
+      <p class="hint">第一格是示範字，接著是描寫，剩下的空格自己寫。</p>
+    </div>
+
+    <fieldset class="field">
+      <legend>描寫字樣式</legend>
+      <div class="seg">
+        <label><input type="radio" name="traceStyle" value="gray" checked><span>淡灰</span></label>
+        <label><input type="radio" name="traceStyle" value="red"><span>描紅</span></label>
+        <label><input type="radio" name="traceStyle" value="outline"><span>空心字</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>格子大小</legend>
+      <div class="seg">
+        <label><input type="radio" name="size" value="15"><span>小</span></label>
+        <label><input type="radio" name="size" value="20" checked><span>中</span></label>
+        <label><input type="radio" name="size" value="25"><span>大</span></label>
+        <label><input type="radio" name="size" value="30"><span>特大</span></label>
+      </div>
+      <p class="hint">剛開始學寫字的小朋友，建議用「大」或「特大」。</p>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>格線顏色</legend>
+      <div class="seg">
+        <label><input type="radio" name="lineColor" value="green" checked><span>綠</span></label>
+        <label><input type="radio" name="lineColor" value="red"><span>紅</span></label>
+        <label><input type="radio" name="lineColor" value="gray"><span>灰</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label for="pages">頁數</label>
+      <div class="range"><input type="range" id="pages" min="1" max="5" value="1"><output id="pagesOut">1</output></div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="header" checked> 頁首顯示標題和日期欄</label>
+
+    <p class="status" id="status" role="status"></p>
+    <button class="print" id="printBtn" type="button">列印練習紙</button>
+    <ul class="tips">
+      <li>紙張選 A4，縮放選「100%」或「實際大小」，邊界選「無」。</li>
+      <li>按鈕沒反應時，請按 Ctrl+P（Mac 按 ⌘+P）。</li>
+    </ul>
+  </aside>
+
+  <section class="preview" id="preview" aria-label="預覽"></section>
+</main>
+
+<script>
+(function(){
+  const W = 210, H = 297, M = 12, CW = W - 2*M, HEADER = 20;
+  const LINE = { green:'#3E9A6A', red:'#D65A4A', gray:'#8E9894' };
+  const TRACE = { gray:'#C6CBC8', red:'#F2ADA3', outline:'#7D8582' };
+  const INK = '#1D1F1E';
+  const FONTS = {
+    iansui: "'Iansui','TW-Kai','BiauKai','DFKai-SB','標楷體',serif",
+    biaukai: "'TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif"
+  };
+  let KAI = FONTS.iansui;
+  const LAT = "'Andika','Comic Sans MS',sans-serif";
+
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'iansui', content:'char' };
+  let metrics = { x:0.5, cap:0.7 };
+  const ctx = document.createElement('canvas').getContext('2d');
+
+  const n = v => +(+v).toFixed(2);
+  const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const SYM = /[\u3105-\u312F]/, TONES = 'ˉˊˇˋ˙';
+  function parseZy(str){
+    if (!str) return null;
+    let tone = ''; const sy = [];
+    for (const ch of str.replace(/\s/g, '')){
+      if (SYM.test(ch)) sy.push(ch);
+      else if (TONES.includes(ch)) tone = ch;
+      else return null;
+    }
+    if (!sy.length || sy.length > 3) return null;
+    return { sy, tone: tone === 'ˉ' ? '' : tone };
+  }
+  state.zhuyin = (() => { try { return JSON.parse(localStorage.getItem('np-zhuyin') || '{}'); } catch(e){ return {}; } })();
+  const saveZy = () => { try { localStorage.setItem('np-zhuyin', JSON.stringify(state.zhuyin)); } catch(e){} };
+  const needZy = () => state.content !== 'char';
+
+  function measure(){
+    ctx.font = "100px 'Andika', sans-serif";
+    const mx = ctx.measureText('x'), mh = ctx.measureText('H');
+    if (mx.actualBoundingBoxAscent && mh.actualBoundingBoxAscent){
+      metrics = { x: mx.actualBoundingBoxAscent/100, cap: mh.actualBoundingBoxAscent/100 };
+    }
+  }
+  function textW(t, f){ ctx.font = "100px 'Andika', sans-serif"; return ctx.measureText(t).width/100*f; }
+
+  const line = (x1,y1,x2,y2,attrs) => `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}" ${attrs}/>`;
+
+  function header(title, lc){
+    if (!state.header) return '';
+    return `<text x="${M}" y="${M+9}" font-size="7" font-weight="700" font-family="${KAI}" fill="${INK}">${esc(title)}</text>`+
+      `<text x="${W-M}" y="${M+9}" font-size="4.4" font-family="${KAI}" fill="#555" text-anchor="end">日期 ＿＿＿＿＿＿＿</text>`+
+      line(M, M+14, W-M, M+14, `stroke="${lc}" stroke-width="0.35"`);
+  }
+  function footer(i, total){
+    return total > 1 ? `<text x="${W/2}" y="${H-6}" font-size="3.4" font-family="${KAI}" fill="#999" text-anchor="middle">${i+1} / ${total}</text>` : '';
+  }
+  const top = () => M + (state.header ? HEADER : 0);
+  const availH = () => H - 2*M - (state.header ? HEADER : 0);
+
+  /* ---------- 中文方格 ---------- */
+  function cell(x, y, s, ch, kind, lc){
+    let g = `<rect x="${n(x)}" y="${n(y)}" width="${n(s)}" height="${n(s)}" fill="none" stroke="${lc}" stroke-width="0.35"/>`;
+    const d = `stroke="${lc}" stroke-width="0.2" stroke-dasharray="1.2 1" opacity="0.75"`;
+    if (state.grid === 'tian' || state.grid === 'mi'){
+      g += line(x+s/2, y, x+s/2, y+s, d) + line(x, y+s/2, x+s, y+s/2, d);
+    }
+    if (state.grid === 'mi'){
+      g += line(x, y, x+s, y+s, d) + line(x+s, y, x, y+s, d);
+    }
+    if (state.grid === 'jiu'){
+      for (const t of [1/3, 2/3]) g += line(x+s*t, y, x+s*t, y+s, d) + line(x, y+s*t, x+s, y+s*t, d);
+    }
+    if (ch){
+      g += `<text x="${n(x+s/2)}" y="${n(y+s/2+s*0.03)}" font-size="${n(s*0.78)}" font-family="${KAI}" text-anchor="middle" dominant-baseline="central" ${paint(kind, s*0.012)}>${esc(ch)}</text>`;
+    }
+    return g;
+  }
+
+  function paint(kind, sw){
+    if (kind === 'solid') return `fill="${INK}"`;
+    if (state.traceStyle === 'outline') return `fill="none" stroke="${TRACE.outline}" stroke-width="${n(sw)}"`;
+    return `fill="${TRACE[state.traceStyle]}"`;
+  }
+  function zyCell(x, y, w, h, zy, kind, lc, thirds){
+    const tw = w * 0.34, sw = w - tw;
+    let g = `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="${lc}" stroke-width="0.35"/>`;
+    g += line(x+sw, y, x+sw, y+h, `stroke="${lc}" stroke-width="0.18" stroke-dasharray="0.8 0.8" opacity="0.7"`);
+    if (thirds) for (const t of [1/3, 2/3]) g += line(x, y+h*t, x+sw, y+h*t, `stroke="${lc}" stroke-width="0.15" stroke-dasharray="0.6 1" opacity="0.5"`);
+    const p = kind !== 'blank' && parseZy(zy);
+    if (p){
+      const dot = p.tone === '˙', cnt = p.sy.length;
+      let u = Math.min(h / 3.15, sw * 1.05);
+      if (dot && cnt + 0.7 > 3.1) u = h / (cnt + 0.85);
+      const fs = u * 0.86, pt = paint(kind, fs * 0.03);
+      const stackH = cnt * u + (dot ? u * 0.6 : 0);
+      const y0 = y + (h - stackH) / 2 + (dot ? u * 0.6 : 0);
+      const T = (tx, ty, ch, f) => `<text x="${n(tx)}" y="${n(ty)}" font-size="${n(f)}" font-family="${KAI}" text-anchor="middle" dominant-baseline="central" ${pt}>${ch}</text>`;
+      p.sy.forEach((c, i) => { g += T(x + sw/2, y0 + (i + 0.5) * u, c, fs); });
+      if (dot) g += T(x + sw/2, y0 - u * 0.3, '˙', fs);
+      else if (p.tone) g += T(x + sw + tw/2, y0 + (cnt - 0.5) * u - u * 0.12, p.tone, fs * 0.9);
+    }
+    return g;
+  }
+
+  function cjkPages(chars){
+    const s = state.size, lc = LINE[state.lineColor], mode = state.content, zy = state.zhuyin;
+    let unit = s, rowH = s, lw = 0;
+    if (mode === 'charbpmf') unit = s * 1.42;
+    if (mode === 'bpmf'){ unit = s * 0.72; rowH = s * 1.5; lw = state.layout === 'char' ? s * 0.9 : 0; }
+    const cols = Math.max(1, Math.floor((CW - lw) / unit)), rpp = Math.max(1, Math.floor(availH() / rowH));
+    const total = rpp * state.pages, k = state.trace, len = chars.length;
+    const rows = [];
+    for (let r = 0; r < total; r++){
+      let cells = [], label = null;
+      if (state.layout === 'char'){
+        const c = chars[Math.min(len-1, Math.floor(r * len / total))];
+        label = c;
+        cells.push([c,'solid']);
+        for (let i = 0; i < k; i++) cells.push([c,'trace']);
+      } else {
+        const kk = Math.max(0, Math.min(k, Math.floor(cols/len) - 1));
+        chars.forEach(c => cells.push([c,'solid']));
+        for (let i = 0; i < kk; i++) chars.forEach(c => cells.push([c,'trace']));
+      }
+      cells = cells.slice(0, cols);
+      while (cells.length < cols) cells.push([null,'blank']);
+      rows.push({ cells, label });
+    }
+    const x0 = M + (CW - lw - cols*unit) / 2, y0 = top();
+    const pages = [];
+    for (let p = 0; p < state.pages; p++){
+      let body = '';
+      rows.slice(p*rpp, (p+1)*rpp).forEach((row, ri) => {
+        const y = y0 + ri*rowH;
+        if (lw && row.label) body += `<text x="${n(x0 + lw*0.45)}" y="${n(y + rowH/2)}" font-size="${n(s*0.66)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(row.label)}</text>`;
+        row.cells.forEach(([ch, kind], ci) => {
+          const x = x0 + lw + ci*unit;
+          if (mode === 'char') body += cell(x, y, s, ch, kind, lc);
+          else if (mode === 'charbpmf') body += cell(x, y, s, ch, kind, lc) + zyCell(x + s, y, s*0.42, s, ch && zy[ch], kind, lc, false);
+          else body += zyCell(x, y, unit, rowH, ch && zy[ch], kind, lc, true);
+        });
+      });
+      pages.push(body);
+    }
+    return pages;
+  }
+
+  /* ---------- 英文四線格 ---------- */
+  function latinPages(name){
+    const s = state.size, lc = LINE[state.lineColor];
+    const h = s * 1.15, gap = s * 0.4;
+    const rpp = Math.max(1, Math.floor((availH() + gap) / (h + gap)));
+    const baseOff = h * 0.64;
+    let f = baseOff / metrics.cap;
+    let w = textW(name, f);
+    if (w > CW){ f *= CW / w; w = CW; }
+    const midOff = baseOff - metrics.x * f;
+    const sp = Math.max(f * 0.9, s * 0.6);
+    const fit = Math.max(1, Math.floor((CW + sp) / (w + sp)));
+    const k = state.trace;
+    const pattern = [
+      ['solid', ...Array(Math.min(k, fit-1)).fill('trace')],
+      Array(Math.min(k, fit)).fill('trace'),
+      []
+    ];
+    const pages = [];
+    for (let p = 0; p < state.pages; p++){
+      let body = '';
+      for (let r = 0; r < rpp; r++){
+        const y = top() + r*(h + gap);
+        body += line(M, y, W-M, y, `stroke="${lc}" stroke-width="0.3"`);
+        body += line(M, y+midOff, W-M, y+midOff, `stroke="${lc}" stroke-width="0.22" stroke-dasharray="1.6 1.2" opacity="0.8"`);
+        body += line(M, y+baseOff, W-M, y+baseOff, `stroke="${lc}" stroke-width="0.4"`);
+        body += line(M, y+h, W-M, y+h, `stroke="${lc}" stroke-width="0.2" opacity="0.6"`);
+        const kinds = pattern[(p*rpp + r) % 3];
+        kinds.forEach((kind, i) => {
+          let paint;
+          if (kind === 'solid') paint = `fill="${INK}"`;
+          else if (state.traceStyle === 'outline') paint = `fill="none" stroke="${TRACE.outline}" stroke-width="${n(f*0.014)}"`;
+          else paint = `fill="${TRACE[state.traceStyle]}"`;
+          body += `<text x="${n(M + i*(w+sp))}" y="${n(y+baseOff)}" font-size="${n(f)}" font-family="${LAT}" ${paint}>${esc(name)}</text>`;
+        });
+      }
+      pages.push(body);
+    }
+    return pages;
+  }
+
+  /* ---------- 組頁 ---------- */
+  const preview = document.getElementById('preview');
+  const CJK = /[\u3400-\u9FFF\uF900-\uFAFF\u{20000}-\u{3FFFF}]/u;
+  const confirmed = (() => { try { return new Set(JSON.parse(localStorage.getItem('np-confirmed') || '[]')); } catch(e){ return new Set(); } })();
+  const saveConfirmed = () => { try { localStorage.setItem('np-confirmed', JSON.stringify([...confirmed])); } catch(e){} };
+  const keyOf = c => state.font + ':' + c + (needZy() ? ':' + (state.zhuyin[c] || '') : '');
+  let needCheck = [];
+  const checksEl = document.getElementById('checks');
+  const printBtn = document.getElementById('printBtn');
+  const statusEl = document.getElementById('status');
+
+  function renderChecks(){
+    document.getElementById('checkField').hidden = !needCheck.length;
+    const z = needZy();
+    document.getElementById('zyTools').hidden = !z || !needCheck.length;
+    document.getElementById('checkHint').textContent = z
+      ? '點「查字典」打開教育部國語小字典，確認字形和注音都一樣，再按「正確」。全部確認後才能列印。'
+      : '點「查字典」打開教育部國語小字典，確認筆畫和這裡一樣，再按「字形正確」。全部確認後才能列印。';
+    checksEl.innerHTML = needCheck.map(c =>
+      `<div class="ck" data-c="${esc(c)}">`+
+        `<div class="g" style="font-family:${KAI}"><span>${esc(c)}</span></div>`+
+        (z ? `<input class="zy" type="text" aria-label="${esc(c)} 的注音" placeholder="注音" value="${esc(state.zhuyin[c] || '')}" autocomplete="off">` : '')+
+        `<a href="https://dict.mini.moe.edu.tw/search.jsp?md=1&amp;word=${encodeURIComponent(c)}" target="_blank" rel="noopener">查字典</a>`+
+        `<button type="button"></button></div>`
+    ).join('');
+    checksEl.querySelectorAll('.ck').forEach(refreshCard);
+    lastZy = checksEl.querySelector('.zy');
+    updateStatus();
+  }
+  function refreshCard(card){
+    const c = card.dataset.c, z = needZy();
+    const valid = !z || !!parseZy(state.zhuyin[c]);
+    const ok = valid && confirmed.has(keyOf(c));
+    card.classList.toggle('ok', ok);
+    const inp = card.querySelector('.zy');
+    if (inp) inp.classList.toggle('bad', !!state.zhuyin[c] && !valid);
+    const b = card.querySelector('button');
+    b.disabled = !valid;
+    b.setAttribute('aria-pressed', ok);
+    b.textContent = (ok ? '✓ ' : '') + (z ? '正確' : '字形正確');
+  }
+  let lastZy = null;
+  checksEl.addEventListener('focusin', e => { if (e.target.classList.contains('zy')) lastZy = e.target; });
+  checksEl.addEventListener('input', e => {
+    if (!e.target.classList.contains('zy')) return;
+    const card = e.target.closest('.ck'), c = card.dataset.c;
+    const v = e.target.value.trim();
+    if (v) state.zhuyin[c] = v; else delete state.zhuyin[c];
+    saveZy(); refreshCard(card); updateStatus(); schedule();
+  });
+
+  /* 注音鍵盤 */
+  const KP = 'ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄧㄨㄩㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ';
+  const kpEl = document.getElementById('kp');
+  kpEl.innerHTML = [...KP].map(c => `<button type="button" data-k="${c}">${c}</button>`).join('') +
+    [['ˊ','二聲'],['ˇ','三聲'],['ˋ','四聲'],['˙','輕聲']].map(([t, l]) => `<button type="button" class="tone" data-k="${t}" aria-label="${l}">${t}</button>`).join('') +
+    `<button type="button" class="wide" data-k="del">刪除</button>`;
+  kpEl.addEventListener('mousedown', e => e.preventDefault());
+  kpEl.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !lastZy) return;
+    const k = b.dataset.k, el = lastZy;
+    const st = el.selectionStart ?? el.value.length, en = el.selectionEnd ?? el.value.length;
+    if (k === 'del'){
+      if (st === en && st > 0) el.setRangeText('', st - 1, st, 'end'); else el.setRangeText('', st, en, 'end');
+    } else el.setRangeText(k, st, en, 'end');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+  });
+
+  /* 請 Claude 填注音 */
+  const autoBtn = document.getElementById('autoZy'), autoMsg = document.getElementById('autoMsg');
+  let sampleFn = null;
+  if (window.claude && window.claude.use){
+    window.claude.use('sample').then(fn => { if (fn){ sampleFn = fn; autoBtn.hidden = false; } }).catch(() => {});
+  }
+  autoBtn.addEventListener('click', async () => {
+    if (!sampleFn || !needCheck.length) return;
+    autoBtn.disabled = true; autoMsg.textContent = '查詢中，約需數十秒…';
+    const name = state.name.trim();
+    const prompt = `請依照台灣教育部《國語小字典》《國語辭典簡編本》的標準讀音，替下面這個人名的每個漢字標注音符號。第一個字通常是姓氏；多音字請用作為姓氏或人名時的讀音。\n名字：${name}\n需要的字：${needCheck.join('、')}\n只回傳一個 JSON 物件，鍵是單一漢字，值是注音符號加聲調（一聲不標；輕聲把˙放在最前面），例如 {"胡":"ㄏㄨˊ"}。不要回傳任何其他文字。`;
+    try {
+      const data = await sampleFn.json(prompt, { modelTier: 'default' });
+      let filled = 0;
+      needCheck.forEach(c => {
+        const v = data && typeof data[c] === 'string' ? data[c].trim() : '';
+        if (v && parseZy(v) && !state.zhuyin[c]){ state.zhuyin[c] = v; filled++; }
+      });
+      saveZy(); renderChecks(); schedule();
+      autoMsg.textContent = filled
+        ? `已填入 ${filled} 個字的注音。多音字可能不準，請一定要對照小字典再按「正確」。`
+        : '空白的注音都已經填好，或沒有取得可用的注音，請手動輸入。';
+    } catch(e){
+      autoMsg.textContent = e && e.code === 'not_granted' ? '沒有取得使用權限，請用下面的注音鍵盤輸入。'
+        : e && e.code === 'rate_limited' ? '查詢太頻繁，請稍後再試，或直接用注音鍵盤輸入。'
+        : '這次沒有查到，請用下面的注音鍵盤輸入。';
+    } finally { autoBtn.disabled = false; }
+  });
+  function pending(){ return needCheck.filter(c => (needZy() && !parseZy(state.zhuyin[c])) || !confirmed.has(keyOf(c))); }
+  function updateStatus(){
+    const p = pending();
+    printBtn.disabled = p.length > 0;
+    statusEl.classList.toggle('ready', !p.length && needCheck.length > 0);
+    statusEl.textContent = p.length
+      ? `還有 ${p.length} 個字要${needZy() ? '填注音並' : ''}對照：${p.join('、')}`
+      : (needCheck.length ? '字形都對照好了，可以列印。' : '');
+  }
+  checksEl.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const c = btn.closest('.ck').dataset.c, k = keyOf(c);
+    confirmed.has(k) ? confirmed.delete(k) : confirmed.add(k);
+    saveConfirmed(); refreshCard(btn.closest('.ck')); updateStatus(); render();
+  });
+
+  function render(){
+    const raw = state.name.trim();
+    const hasCJK = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/.test(raw);
+    const latin = raw && !hasCJK && /[A-Za-z]/.test(raw);
+    document.getElementById('gridSet').disabled = !!latin;
+    document.getElementById('layoutSet').disabled = !!latin;
+    document.getElementById('modeHint').textContent = latin
+      ? '偵測到英文名字，使用四線格練習。'
+      : '中文字會放在格子裡；英文名字會改用四線格。';
+
+    const cjkList = latin ? [] : [...new Set([...raw].filter(c => CJK.test(c)))];
+    const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
+    if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
+    document.getElementById('contentSet').disabled = !!latin;
+    if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
+    const unchecked = pending().length > 0;
+    const lc = LINE[state.lineColor];
+    let bodies;
+    if (!raw){
+      bodies = [`<text x="${W/2}" y="${H/2}" font-size="9" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">在左邊輸入名字</text>`];
+    } else if (latin){
+      bodies = latinPages(raw.replace(/\s+/g,' '));
+    } else {
+      bodies = cjkPages([...raw].filter(c => c.trim()));
+    }
+    const title = raw ? `${raw} 的${!latin && state.content === 'bpmf' ? '注音' : '寫字'}練習` : '';
+    preview.innerHTML = bodies.map((b, i) =>
+      `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
+      `<rect width="${W}" height="${H}" fill="#fff"/>${raw ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
+      (unchecked ? `<text x="${W-M}" y="${H-5}" font-size="3.4" font-family="${KAI}" fill="#D65A4A" text-anchor="end">尚未完成國語小字典${needZy() ? '字形與注音' : '字形'}對照</text>` : '') + `</svg>`+
+      (bodies.length > 1 ? `<div class="num">第 ${i+1} 頁，共 ${bodies.length} 頁</div>` : '') + `</div>`
+    ).join('');
+  }
+
+  let queued = false;
+  const schedule = () => { if (!queued){ queued = true; requestAnimationFrame(() => { queued = false; render(); }); } };
+
+  /* ---------- 控制項 ---------- */
+  const nameEl = document.getElementById('name');
+  nameEl.addEventListener('input', () => { state.name = nameEl.value; schedule(); });
+
+  ['grid','layout','traceStyle','size','lineColor','font','content'].forEach(key => {
+    document.querySelectorAll(`input[name="${key}"]`).forEach(el => el.addEventListener('change', () => {
+      state[key] = key === 'size' ? +el.value : el.value; if (key === 'font') KAI = FONTS[state.font]; schedule();
+    }));
+  });
+  [['trace','traceOut'],['pages','pagesOut']].forEach(([id, out]) => {
+    const el = document.getElementById(id), o = document.getElementById(out);
+    el.addEventListener('input', () => { state[id] = +el.value; o.textContent = el.value; schedule(); });
+  });
+  const hdr = document.getElementById('header');
+  hdr.addEventListener('change', () => { state.header = hdr.checked; schedule(); });
+
+  document.getElementById('printBtn').addEventListener('click', () => {
+    try { window.print(); } catch(e) { alert('請按 Ctrl+P（Mac 按 ⌘+P）列印。'); }
+  });
+
+  function hasLocalKai(){
+    try {
+      const c = document.createElement('canvas'); c.width = 120; c.height = 60;
+      const x = c.getContext('2d');
+      const draw = f => { x.clearRect(0,0,120,60); x.font = '50px ' + f; x.fillText('胡永', 0, 50); return x.getImageData(0,0,120,60).data.join(','); };
+      const stack = "'TW-Kai','BiauKai','DFKai-SB','標楷體',";
+      return draw(stack + 'serif') !== draw('serif') || draw(stack + 'monospace') !== draw('monospace');
+    } catch(e){ return true; }
+  }
+  if (!hasLocalKai()){
+    const r = document.getElementById('fontBiau'); r.disabled = true;
+    r.nextElementSibling.style.opacity = '.4';
+    document.getElementById('fontHint').textContent = '這台裝置沒有安裝標楷體，請使用芫荽。兩者都依照教育部標準字體設計。';
+  }
+
+  render();
+  const loads = [document.fonts.load("100px 'Andika'", 'Hxg'), document.fonts.load("40px 'Iansui'", '王小明胡寫名字')];
+  Promise.all(loads).catch(()=>{}).then(() => document.fonts.ready).then(() => { measure(); render(); });
+})();
+</script>
+</body>
+</html>
