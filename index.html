@@ -250,6 +250,8 @@ fieldset:disabled legend{opacity:.5}
       <label class="check"><input type="checkbox" id="strokes" checked> 加入筆順示範</label>
       <p class="hint">每個字前面會一筆一筆畫出筆順，資料來自教育部常用國字標準字體筆順學習網（g0v 整理）。</p>
       <p class="hint" id="strokeMsg" role="status"></p>
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="progressive"> 字帖逐格加筆畫（新功能）</label>
+      <p class="hint">勾選後，示範字後面的描寫格會照筆順一格多一筆，寫到完整的字，新加的那一筆用彩色標示。需要時再勾選，不勾選就是原本的字帖。</p>
     </div>
 
     <div class="field">
@@ -342,7 +344,7 @@ fieldset:disabled legend{opacity:.5}
   const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -549,6 +551,16 @@ fieldset:disabled legend{opacity:.5}
     return g;
   }
 
+  function stepGlyph(x, y, s, d, j){
+    const pad = s * 0.1, k = (s - 2*pad) / d.dim;
+    const prev = state.traceStyle === 'red' ? TRACE.red : TRACE.gray;
+    let g = `<g transform="translate(${n(x+pad)} ${n(y+pad)}) scale(${k.toFixed(6)})">`;
+    for (let i = 0; i < j; i++) g += `<path d="${d.paths[i]}" fill="${prev}"/>`;
+    g += `<path d="${d.paths[j]}" fill="${PAL[j % PAL.length]}" opacity="0.6"/></g>`;
+    g += `<text x="${n(x + 0.9)}" y="${n(y + 0.9)}" font-size="${n(Math.max(2.4, s*0.13))}" font-weight="700" font-family="${LAT}" fill="${PAL[j % PAL.length]}" dominant-baseline="hanging">${j + 1}</text>`;
+    return g;
+  }
+
   function drawStrip(c, x0, y, sb, slw, scols, lc, D){
     const d = strokeData[c], pad = sb * 0.1, k = (sb - 2*pad) / d.dim;
     let g = drawDiagram(d, x0, y, D, lc) +
@@ -583,6 +595,17 @@ fieldset:disabled legend{opacity:.5}
       const d = useStrokes && strokeData[c];
       return d && d.paths ? { type:'strip', c, h: 2 + Math.max(D, Math.ceil(d.paths.length / scols) * sb + 6) + 4 } : null;
     };
+    const progRows = c => {
+      const d = state.progressive && state.strokes && mode !== 'bpmf' && strokeData[c];
+      if (!d || !d.paths) return [];
+      const per = Math.max(1, cols - 1), n = d.paths.length, rows = [];
+      for (let start = 0; start < n; start += per){
+        const cells = [[c, 'solid']];
+        for (let j = start; j < start + per; j++) cells.push(j < n ? [c, 'step', j] : [c, 'trace']);
+        rows.push({ type:'row', cells: cells.slice(0, cols), label: c, h: rowH });
+      }
+      return rows;
+    };
     const makeRow = c => {
       let cells = [];
       if (c){
@@ -611,10 +634,16 @@ fieldset:disabled legend{opacity:.5}
       const strips = chars.map(strip);
       const build = per => {
         const out = [];
-        chars.forEach((c, i) => { if (strips[i]) out.push(strips[i]); for (let r = 0; r < per; r++) out.push(makeRow(c)); });
+        chars.forEach((c, i) => {
+          if (strips[i]) out.push(strips[i]);
+          const prog = progRows(c);
+          prog.forEach(r => out.push(r));
+          for (let r = 0; r < per; r++) out.push(makeRow(c));
+        });
         return out;
       };
-      let per = Math.max(1, Math.floor(state.pages * Math.floor(AH / rowH) / len));
+      const progCount = chars.reduce((a, c) => a + progRows(c).length, 0);
+      let per = Math.max(1, Math.floor((state.pages * Math.floor(AH / rowH) - progCount) / len));
       while (per > 1 && paginate(build(per)).length > state.pages) per--;
       items = build(per);
     } else {
@@ -629,8 +658,13 @@ fieldset:disabled legend{opacity:.5}
         const y = Y0 + yy;
         if (it.type === 'strip'){ body += drawStrip(it.c, x0, y + 2, sb, slw, scols, lc, D); return; }
         if (lw && it.label) body += `<text x="${n(x0 + lw*0.45)}" y="${n(y + rowH/2)}" font-size="${n(s*0.66)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(it.label)}</text>`;
-        it.cells.forEach(([ch, kind], ci) => {
+        it.cells.forEach(([ch, kind, step], ci) => {
           const x = x0 + lw + ci*unit;
+          if (kind === 'step'){
+            body += cell(x, y, s, null, 'blank', lc) + stepGlyph(x, y, s, strokeData[ch], step);
+            if (mode === 'charbpmf') body += zyCell(x + s, y, s*0.42, s, zy[ch], 'trace', lc, false);
+            return;
+          }
           if (mode === 'char') body += cell(x, y, s, ch, kind, lc);
           else if (mode === 'charbpmf') body += cell(x, y, s, ch, kind, lc) + zyCell(x + s, y, s*0.42, s, ch && zy[ch], kind, lc, false);
           else body += zyCell(x, y, unit, rowH, ch && zy[ch], kind, lc, true);
@@ -970,6 +1004,8 @@ fieldset:disabled legend{opacity:.5}
   });
   const stk = document.getElementById('strokes');
   stk.addEventListener('change', () => { state.strokes = stk.checked; schedule(); });
+  const prg = document.getElementById('progressive');
+  prg.addEventListener('change', () => { state.progressive = prg.checked; schedule(); });
   const hdr = document.getElementById('header');
   hdr.addEventListener('change', () => { state.header = hdr.checked; schedule(); });
 
