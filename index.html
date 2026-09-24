@@ -122,6 +122,9 @@ fieldset:disabled legend{opacity:.5}
 .vbar .vprint{background:var(--pencil);color:var(--pencil-ink);border-color:var(--pencil)}
 .vbar #vPage{font-variant-numeric:tabular-nums;min-width:4.5em;text-align:center}
 .vsp{flex:1}
+.vpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#22342A;color:#E4EDE8;font-size:15px}
+.vpdf a,.vpdf button{appearance:none;font:700 15px var(--sans);padding:8px 14px;border-radius:8px;background:var(--pencil);color:var(--pencil-ink);text-decoration:none;border:0;cursor:pointer}
+.vpdf a:focus-visible,.vpdf button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .vstage{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:20px}
 .vstage svg{display:block;background:#fff;box-shadow:0 6px 30px rgba(0,0,0,.4);height:calc(100vh - 120px);width:auto;max-width:100%}
 .vstage.wide svg{width:min(1100px,100%);height:auto;max-width:none}
@@ -265,6 +268,7 @@ fieldset:disabled legend{opacity:.5}
 
     <p class="status" id="status" role="status"></p>
     <button class="view" id="viewBtn" type="button">預覽練習紙</button>
+    <button class="view" id="pdfBtn" type="button">製作 PDF（手機也能看、能印）</button>
     <button class="print" id="printBtn" type="button">列印練習紙</button>
     <ul class="tips">
       <li>紙張選 A4，縮放選「100%」或「實際大小」，邊界選「無」。</li>
@@ -282,8 +286,15 @@ fieldset:disabled legend{opacity:.5}
     <span class="vsp"></span>
     <button type="button" id="vFit" aria-pressed="true">整頁</button>
     <button type="button" id="vWide" aria-pressed="false">放大</button>
+    <button type="button" id="vPdfBtn">PDF</button>
     <button type="button" class="vprint" id="vPrint">列印</button>
     <button type="button" id="vClose" aria-label="關閉預覽">關閉</button>
+  </div>
+  <div class="vpdf" id="vPdf" hidden role="status">
+    <span id="pdfMsg"></span>
+    <a id="pdfOpen" target="_blank" rel="noopener" hidden>開啟 PDF</a>
+    <button type="button" id="pdfShare" hidden>分享／列印</button>
+    <a id="pdfDl" hidden>下載 PDF</a>
   </div>
   <div class="vstage" id="vStage"></div>
 </div>
@@ -781,6 +792,7 @@ fieldset:disabled legend{opacity:.5}
     const p = pending();
     printBtn.disabled = p.length > 0;
     document.getElementById('viewBtn').disabled = p.length > 0;
+    document.getElementById('pdfBtn').disabled = p.length > 0;
     statusEl.classList.toggle('ready', !p.length && needCheck.length > 0);
     statusEl.textContent = p.length
       ? `還有 ${p.length} 個字要${needZy() ? '填注音並' : ''}對照：${p.join('、')}`
@@ -880,6 +892,7 @@ fieldset:disabled legend{opacity:.5}
   }
   function openViewer(){
     lastFocus = document.activeElement; vIdx = 0;
+    if (!pdfBusy) pdfBox.hidden = true;
     viewer.hidden = false; document.body.style.overflow = 'hidden';
     viewerShow(); document.getElementById('vClose').focus();
   }
@@ -906,6 +919,140 @@ fieldset:disabled legend{opacity:.5}
     else if (e.key === 'ArrowLeft' && vIdx > 0){ vIdx--; viewerShow(); }
     else if (e.key === 'ArrowRight'){ const n = preview.querySelectorAll('.sheet svg').length; if (vIdx < n - 1){ vIdx++; viewerShow(); } }
   });
+
+  /* ---------- 製作 PDF（把練習紙畫成 200 dpi 圖片，再放進 A4 PDF） ---------- */
+  const PX = 200 / 25.4;
+  let jsPdfLoading = null, pdfURL = null, pdfFile = null, pdfBusy = false;
+  function loadScript(src){
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
+    });
+  }
+  function loadJsPDF(){
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+    if (!jsPdfLoading){
+      jsPdfLoading = loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+        .catch(() => loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'))
+        .then(() => { if (!(window.jspdf && window.jspdf.jsPDF)) throw new Error('jspdf'); })
+        .catch(e => { jsPdfLoading = null; throw e; });
+    }
+    return jsPdfLoading;
+  }
+  function strokeIt(ctx, el){
+    const st = el.getAttribute('stroke');
+    if (!st || st === 'none') return;
+    ctx.strokeStyle = st;
+    ctx.lineWidth = +el.getAttribute('stroke-width') || 1;
+    const da = el.getAttribute('stroke-dasharray');
+    ctx.setLineDash(da ? da.split(/[\s,]+/).map(Number) : []);
+    ctx.stroke();
+  }
+  function drawText(ctx, el){
+    const A = k => el.getAttribute(k);
+    const m = ctx.getTransform(), k = m.a;
+    const pt = new DOMPoint(+A('x') || 0, +A('y') || 0).matrixTransform(m);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = `${A('font-weight') || 'normal'} ${(+A('font-size') || 4) * k}px ${A('font-family') || KAI}`;
+    ctx.textAlign = { middle: 'center', end: 'right' }[A('text-anchor')] || 'left';
+    const db = A('dominant-baseline');
+    ctx.textBaseline = db === 'central' ? 'middle' : db === 'hanging' ? 'hanging' : 'alphabetic';
+    const t = el.textContent, fill = A('fill');
+    if (fill !== 'none'){ ctx.fillStyle = fill || '#000'; ctx.fillText(t, pt.x, pt.y); }
+    const st = A('stroke');
+    if (st && st !== 'none'){ ctx.strokeStyle = st; ctx.lineWidth = (+A('stroke-width') || 0.2) * k; ctx.setLineDash([]); ctx.strokeText(t, pt.x, pt.y); }
+    ctx.restore();
+  }
+  function drawNode(ctx, node){
+    for (const el of node.children){
+      const tag = el.tagName.toLowerCase(), A = k => el.getAttribute(k);
+      ctx.save();
+      if (A('opacity')) ctx.globalAlpha *= +A('opacity');
+      if (tag === 'g'){
+        const re = /(translate|scale)\(([^)]*)\)/g; let m;
+        while ((m = re.exec(A('transform') || ''))){
+          const v = m[2].trim().split(/[\s,]+/).map(Number);
+          if (m[1] === 'translate') ctx.translate(v[0] || 0, v[1] || 0); else ctx.scale(v[0], v.length > 1 ? v[1] : v[0]);
+        }
+        drawNode(ctx, el);
+      } else if (tag === 'rect'){
+        ctx.beginPath(); ctx.rect(+A('x') || 0, +A('y') || 0, +A('width'), +A('height'));
+        const f = A('fill'); if (f && f !== 'none'){ ctx.fillStyle = f; ctx.fill(); }
+        strokeIt(ctx, el);
+      } else if (tag === 'line'){
+        ctx.beginPath(); ctx.moveTo(+A('x1'), +A('y1')); ctx.lineTo(+A('x2'), +A('y2'));
+        strokeIt(ctx, el);
+      } else if (tag === 'path'){
+        const f = A('fill'); if (f !== 'none'){ ctx.fillStyle = f || '#000'; ctx.fill(new Path2D(A('d'))); }
+      } else if (tag === 'text') drawText(ctx, el);
+      ctx.restore();
+    }
+  }
+  async function sheetToCanvas(svg){
+    const texts = [...svg.querySelectorAll('text')];
+    const chars = [...new Set(texts.map(t => t.textContent).join(''))].join('') || 'a';
+    const fams = [...new Set(texts.map(t => t.getAttribute('font-family') || KAI))];
+    await Promise.all(fams.map(f => document.fonts.load(`40px ${f}`, chars).catch(() => {})));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(W * PX); cv.height = Math.round(H * PX);
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(PX, 0, 0, PX, 0, 0);
+    drawNode(ctx, svg);
+    return cv;
+  }
+  const pdfBox = document.getElementById('vPdf'), pdfMsg = document.getElementById('pdfMsg');
+  const pdfOpen = document.getElementById('pdfOpen'), pdfShare = document.getElementById('pdfShare'), pdfDl = document.getElementById('pdfDl');
+  function pdfState(msg, links){
+    pdfBox.hidden = false; pdfMsg.textContent = msg;
+    pdfOpen.hidden = pdfDl.hidden = !links;
+    pdfShare.hidden = !(links && pdfFile && navigator.canShare && navigator.canShare({ files: [pdfFile] }));
+  }
+  async function getDownloads(){
+    if (!(window.claude && window.claude.use)) return null;
+    try { return await Promise.race([window.claude.use('downloads'), new Promise(r => setTimeout(() => r(null), 3000))]); }
+    catch(e){ return null; }
+  }
+  async function makePDF(){
+    if (pdfBusy) return;
+    const svgs = [...preview.querySelectorAll('.sheet svg')];
+    if (!svgs.length || pending().length) return;
+    if (viewer.hidden) openViewer();
+    pdfBusy = true; pdfState('PDF 製作中，請稍候…', false);
+    const name = state.name.trim() || '練習紙';
+    const filename = `${name}-練習紙.pdf`;
+    try {
+      await loadJsPDF();
+      await document.fonts.ready;
+      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      for (let i = 0; i < svgs.length; i++){
+        pdfState(`PDF 製作中（第 ${i + 1} / ${svgs.length} 頁）…`, false);
+        const cv = await sheetToCanvas(svgs[i]);
+        if (i) pdf.addPage();
+        pdf.addImage(cv.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
+        cv.width = cv.height = 0;
+      }
+      const blob = pdf.output('blob');
+      const dl = await getDownloads();
+      if (dl){
+        try { await dl.save({ filename, data: blob }); pdfState('PDF 已完成，請在跳出的視窗確認下載。', false); return; }
+        catch(e){ if (e && e.code === 'declined'){ pdfState('已取消下載 PDF。', false); return; } }
+      }
+      if (pdfURL) URL.revokeObjectURL(pdfURL);
+      pdfURL = URL.createObjectURL(blob);
+      try { pdfFile = new File([blob], filename, { type: 'application/pdf' }); } catch(e){ pdfFile = null; }
+      pdfOpen.href = pdfURL; pdfDl.href = pdfURL; pdfDl.download = filename;
+      pdfState(`PDF 完成（${svgs.length} 頁）：`, true);
+    } catch(e){
+      pdfState('PDF 製作失敗：需要網路下載 PDF 工具，請確認網路連線後再試一次。', false);
+    } finally { pdfBusy = false; }
+  }
+  pdfShare.addEventListener('click', async () => {
+    try { await navigator.share({ files: [pdfFile], title: pdfFile.name }); } catch(e){}
+  });
+  document.getElementById('pdfBtn').addEventListener('click', makePDF);
+  document.getElementById('vPdfBtn').addEventListener('click', makePDF);
 
   document.getElementById('printBtn').addEventListener('click', () => {
     try { window.print(); } catch(e) { alert('請按 Ctrl+P（Mac 按 ⌘+P）列印。'); }
