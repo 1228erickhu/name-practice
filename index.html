@@ -72,7 +72,17 @@ fieldset:disabled legend{opacity:.5}
 .check input{width:18px;height:18px;accent-color:var(--grid)}
 
 .checks{display:flex;flex-wrap:wrap;gap:10px}
-.ck{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 10px 8px;border:1.5px solid var(--line);border-radius:10px;min-width:92px}
+.ck{display:flex;align-items:flex-start;gap:12px;padding:10px;border:1.5px solid var(--line);border-radius:10px;width:100%}
+.ck .body{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.ck .acts{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ck .dict{font-size:13px;line-height:1.5;color:var(--muted)}
+.ck .dict .good{color:var(--grid);font-weight:600;display:block}
+.ck .dict .warn{color:#D65A4A;font-weight:600;display:block}
+.ck .rds{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.ck .rd{appearance:none;font:16px var(--kai);padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.ck .rd.on{border-color:var(--grid);background:var(--grid);color:var(--panel)}
+.ck .rd small{font:11px var(--sans);margin-left:3px}
+.ck .rd:focus-visible{outline:3px solid var(--pencil);outline-offset:1px}
 .ck.ok{border-color:var(--grid);background:color-mix(in srgb,var(--grid) 8%,transparent)}
 .ck .g{position:relative;width:64px;height:64px;display:grid;place-items:center;font-size:50px;line-height:1;border:1.5px solid var(--grid);background:#fff;color:#1D1F1E}
 .ck .g::before,.ck .g::after{content:"";position:absolute;border-color:var(--grid);opacity:.4}
@@ -83,7 +93,7 @@ fieldset:disabled legend{opacity:.5}
 .ck a:focus-visible,.ck button:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
 .ck button{appearance:none;font:600 13px var(--sans);padding:4px 10px;border-radius:999px;border:1.5px solid var(--grid);background:transparent;color:var(--grid);cursor:pointer}
 .ck.ok button{background:var(--grid);color:var(--panel)}
-.ck .zy{width:92px;font:22px var(--kai);text-align:center;padding:4px 6px;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.ck .zy{width:110px;font:22px var(--kai);text-align:center;padding:4px 6px;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .ck .zy.bad{border-color:#D65A4A}
 .ck .zy:focus-visible{outline:3px solid var(--pencil);outline-offset:1px}
 .ck button:disabled{opacity:.4;cursor:not-allowed}
@@ -100,6 +110,21 @@ fieldset:disabled legend{opacity:.5}
 .print:disabled{background:var(--line);color:var(--muted);box-shadow:none;cursor:not-allowed}
 .status{font-size:14px;margin:0;font-weight:600;color:var(--muted)}
 .status.ready{color:var(--grid)}
+.view{appearance:none;border:2px solid var(--grid);border-radius:10px;background:transparent;color:var(--grid);font:700 16px var(--sans);padding:11px;cursor:pointer}
+.view:disabled{opacity:.4;cursor:not-allowed}
+.view:focus-visible{outline:3px solid var(--pencil);outline-offset:3px}
+.viewer{position:fixed;inset:0;z-index:50;background:rgba(16,24,20,.88);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.vbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#18231D;color:#E4EDE8;flex-wrap:wrap}
+.vbar button{appearance:none;font:600 15px var(--sans);padding:7px 14px;border-radius:8px;border:1px solid #3A4D42;background:transparent;color:#E4EDE8;cursor:pointer;min-width:40px}
+.vbar button[aria-pressed="true"]{background:#3E9A6A;border-color:#3E9A6A}
+.vbar button:disabled{opacity:.35;cursor:not-allowed}
+.vbar button:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.vbar .vprint{background:var(--pencil);color:var(--pencil-ink);border-color:var(--pencil)}
+.vbar #vPage{font-variant-numeric:tabular-nums;min-width:4.5em;text-align:center}
+.vsp{flex:1}
+.vstage{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:20px}
+.vstage svg{display:block;background:#fff;box-shadow:0 6px 30px rgba(0,0,0,.4);height:calc(100vh - 120px);width:auto;max-width:100%}
+.vstage.wide svg{width:min(1100px,100%);height:auto;max-width:none}
 .print{appearance:none;border:0;border-radius:10px;background:var(--pencil);color:var(--pencil-ink);font:700 18px var(--sans);padding:14px;cursor:pointer;box-shadow:0 3px 0 #C79E1E}
 .print:hover{filter:brightness(1.04)}
 .print:active{transform:translateY(2px);box-shadow:0 1px 0 #C79E1E}
@@ -116,7 +141,7 @@ fieldset:disabled legend{opacity:.5}
 @media print{
   :root{padding:0}
   body{background:#fff}
-  .top,.panel,.sheet .num{display:none!important}
+  .top,.panel,.sheet .num,.viewer{display:none!important}
   .layout{display:block;padding:0;max-width:none}
   .preview{display:block}
   .sheet{max-width:none;width:210mm;break-after:page;page-break-after:always}
@@ -191,6 +216,12 @@ fieldset:disabled legend{opacity:.5}
     </fieldset>
 
     <div class="field">
+      <label class="check"><input type="checkbox" id="strokes" checked> 加入筆順示範</label>
+      <p class="hint">每個字前面會一筆一筆畫出筆順，資料來自教育部常用國字標準字體筆順學習網（g0v 整理）。</p>
+      <p class="hint" id="strokeMsg" role="status"></p>
+    </div>
+
+    <div class="field">
       <label for="trace">每行描寫幾次</label>
       <div class="range"><input type="range" id="trace" min="0" max="10" value="4"><output id="traceOut">4</output></div>
       <p class="hint">第一格是示範字，接著是描寫，剩下的空格自己寫。</p>
@@ -233,6 +264,7 @@ fieldset:disabled legend{opacity:.5}
     <label class="check"><input type="checkbox" id="header" checked> 頁首顯示標題和日期欄</label>
 
     <p class="status" id="status" role="status"></p>
+    <button class="view" id="viewBtn" type="button">預覽練習紙</button>
     <button class="print" id="printBtn" type="button">列印練習紙</button>
     <ul class="tips">
       <li>紙張選 A4，縮放選「100%」或「實際大小」，邊界選「無」。</li>
@@ -242,6 +274,20 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
+  <div class="vbar">
+    <button type="button" id="vPrev" aria-label="上一頁">‹</button>
+    <span id="vPage">1 / 1</span>
+    <button type="button" id="vNext" aria-label="下一頁">›</button>
+    <span class="vsp"></span>
+    <button type="button" id="vFit" aria-pressed="true">整頁</button>
+    <button type="button" id="vWide" aria-pressed="false">放大</button>
+    <button type="button" class="vprint" id="vPrint">列印</button>
+    <button type="button" id="vClose" aria-label="關閉預覽">關閉</button>
+  </div>
+  <div class="vstage" id="vStage"></div>
+</div>
+
 
 <script>
 (function(){
@@ -256,7 +302,7 @@ fieldset:disabled legend{opacity:.5}
   let KAI = FONTS.iansui;
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'iansui', content:'char' };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'iansui', content:'char', strokes:true };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -347,47 +393,158 @@ fieldset:disabled legend{opacity:.5}
     return g;
   }
 
+  /* ---------- 筆順資料 ---------- */
+  const strokeData = {};
+  const STROKE_SRC = [
+    h => `https://www.moedict.tw/api/stroke-json/${h}.json`,
+    h => `https://cdn.jsdelivr.net/npm/zh-stroke-data@0.0.75/json/${h}.json`,
+    h => `https://raw.githubusercontent.com/g0v/zh-stroke-data/master/json/${h}.json`,
+    h => `https://cdn.jsdelivr.net/gh/g0v/zh-stroke-data@master/json/${h}.json`
+  ];
+  function parseStrokes(j){
+    const list = Array.isArray(j) ? j : (j && Array.isArray(j.strokes) ? j.strokes : null);
+    if (!list || !list.length) return null;
+    let max = 0;
+    const P = pt => { if (!pt || !isFinite(pt.x) || !isFinite(pt.y)) throw 0; max = Math.max(max, pt.x, pt.y); return `${+pt.x} ${+pt.y}`; };
+    try {
+      const paths = list.map(st => {
+        const o = st && (st.outline || st.outlines);
+        if (!Array.isArray(o) || !o.length) throw 0;
+        let d = '';
+        for (const c of o){
+          if (c.type === 'M') d += 'M' + P(c);
+          else if (c.type === 'L') d += 'L' + P(c);
+          else if (c.type === 'Q') d += 'Q' + P(c.begin) + ' ' + P(c.end);
+          else if (c.type === 'C') d += 'C' + P(c.begin) + ' ' + P(c.mid) + ' ' + P(c.end);
+        }
+        return d + 'Z';
+      });
+      return { paths, dim: Math.max(2150, Math.ceil(max)) };
+    } catch(e){ return null; }
+  }
+  async function loadStrokes(c){
+    strokeData[c] = 'loading'; strokeStatus();
+    const hex = c.codePointAt(0).toString(16);
+    let blocked = 0;
+    for (const src of STROKE_SRC){
+      try {
+        const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+        const r = await fetch(src(hex), { signal: ctl.signal });
+        clearTimeout(t);
+        if (!r.ok) continue;
+        const d = parseStrokes(await r.json());
+        if (d){
+          strokeData[c] = d; strokeStatus(); schedule();
+          const card = [...checksEl.querySelectorAll('.ck')].find(el => el.dataset.c === c);
+          if (card) refreshCard(card);
+          return;
+        }
+      } catch(e){ blocked++; }
+    }
+    strokeData[c] = blocked === STROKE_SRC.length ? 'blocked' : 'missing';
+    strokeStatus(); schedule();
+  }
+  let strokeChars = [];
+  function strokeStatus(){
+    const el = document.getElementById('strokeMsg');
+    if (!state.strokes || !strokeChars.length){ el.textContent = ''; return; }
+    const st = strokeChars.map(c => strokeData[c]);
+    if (st.includes('loading')) el.textContent = '筆順資料載入中…';
+    else if (st.includes('blocked')) el.textContent = '目前無法連線取得筆順資料。在 Claude 的預覽視窗裡會被安全設定擋住；放到 GitHub Pages 等一般網站上就能正常顯示。';
+    else {
+      const miss = strokeChars.filter(c => strokeData[c] === 'missing');
+      el.textContent = miss.length ? `「${miss.join('、')}」查不到筆順資料，這些字不會顯示筆順。` : '';
+    }
+  }
+
+  function drawStrip(c, x0, y, sb, slw, scols, lc){
+    const d = strokeData[c], pad = sb * 0.1, k = (sb - 2*pad) / d.dim;
+    let g = `<text x="${n(x0 + slw*0.32)}" y="${n(y + sb/2)}" font-size="${n(sb*0.7)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`+
+      `<text x="${n(x0 + slw*0.78)}" y="${n(y + sb/2)}" font-size="${n(Math.max(2.6, sb*0.26))}" font-family="${KAI}" fill="#666" text-anchor="middle" dominant-baseline="central">${d.paths.length}畫</text>`;
+    const dd = `stroke="${lc}" stroke-width="0.15" stroke-dasharray="0.8 0.8" opacity="0.5"`;
+    d.paths.forEach((_, i) => {
+      const bx = x0 + slw + (i % scols) * sb, by = y + Math.floor(i / scols) * sb;
+      g += `<rect x="${n(bx)}" y="${n(by)}" width="${n(sb)}" height="${n(sb)}" fill="none" stroke="${lc}" stroke-width="0.25"/>`+
+        line(bx + sb/2, by, bx + sb/2, by + sb, dd) + line(bx, by + sb/2, bx + sb, by + sb/2, dd);
+      g += `<g transform="translate(${n(bx+pad)} ${n(by+pad)}) scale(${k.toFixed(6)})">`;
+      for (let j = 0; j <= i; j++) g += `<path d="${d.paths[j]}" fill="${j === i ? INK : '#C9CDCB'}"/>`;
+      g += `</g><text x="${n(bx + 0.8)}" y="${n(by + 0.8)}" font-size="2.2" font-family="${KAI}" fill="#999" dominant-baseline="hanging">${i+1}</text>`;
+    });
+    return g;
+  }
+
   function cjkPages(chars){
     const s = state.size, lc = LINE[state.lineColor], mode = state.content, zy = state.zhuyin;
     let unit = s, rowH = s, lw = 0;
     if (mode === 'charbpmf') unit = s * 1.42;
     if (mode === 'bpmf'){ unit = s * 0.72; rowH = s * 1.5; lw = state.layout === 'char' ? s * 0.9 : 0; }
-    const cols = Math.max(1, Math.floor((CW - lw) / unit)), rpp = Math.max(1, Math.floor(availH() / rowH));
-    const total = rpp * state.pages, k = state.trace, len = chars.length;
-    const rows = [];
-    for (let r = 0; r < total; r++){
-      let cells = [], label = null;
-      if (state.layout === 'char'){
-        const c = chars[Math.min(len-1, Math.floor(r * len / total))];
-        label = c;
+    const cols = Math.max(1, Math.floor((CW - lw) / unit));
+    const k = state.trace, len = chars.length;
+    const gridW = lw + cols * unit, x0 = M + (CW - gridW) / 2;
+    const Y0 = top(), AH = availH();
+
+    const sb = Math.min(14, Math.max(9, s * 0.6)), slw = sb * 1.8;
+    const scols = Math.max(1, Math.floor((gridW - slw) / sb));
+    const useStrokes = state.strokes && mode !== 'bpmf';
+    const strip = c => {
+      const d = useStrokes && strokeData[c];
+      return d && d.paths ? { type:'strip', c, h: 2 + Math.ceil(d.paths.length / scols) * sb + 3 } : null;
+    };
+    const makeRow = c => {
+      let cells = [];
+      if (c){
         cells.push([c,'solid']);
         for (let i = 0; i < k; i++) cells.push([c,'trace']);
       } else {
         const kk = Math.max(0, Math.min(k, Math.floor(cols/len) - 1));
-        chars.forEach(c => cells.push([c,'solid']));
-        for (let i = 0; i < kk; i++) chars.forEach(c => cells.push([c,'trace']));
+        chars.forEach(ch => cells.push([ch,'solid']));
+        for (let i = 0; i < kk; i++) chars.forEach(ch => cells.push([ch,'trace']));
       }
       cells = cells.slice(0, cols);
       while (cells.length < cols) cells.push([null,'blank']);
-      rows.push({ cells, label });
+      return { type:'row', cells, label: c, h: rowH };
+    };
+    const paginate = items => {
+      const pages = [[]]; let y = 0;
+      for (const it of items){
+        if (y + it.h > AH + 0.01){ pages.push([]); y = 0; }
+        pages[pages.length-1].push({ it, y }); y += it.h;
+      }
+      return pages;
+    };
+
+    let items = [];
+    if (state.layout === 'char'){
+      const strips = chars.map(strip);
+      const build = per => {
+        const out = [];
+        chars.forEach((c, i) => { if (strips[i]) out.push(strips[i]); for (let r = 0; r < per; r++) out.push(makeRow(c)); });
+        return out;
+      };
+      let per = Math.max(1, Math.floor(state.pages * Math.floor(AH / rowH) / len));
+      while (per > 1 && paginate(build(per)).length > state.pages) per--;
+      items = build(per);
+    } else {
+      chars.forEach(c => { const st = strip(c); if (st) items.push(st); });
+      const rowsNeeded = Math.ceil(state.pages * AH / rowH) + 1;
+      for (let r = 0; r < rowsNeeded; r++) items.push(makeRow(null));
     }
-    const x0 = M + (CW - lw - cols*unit) / 2, y0 = top();
-    const pages = [];
-    for (let p = 0; p < state.pages; p++){
+
+    return paginate(items).slice(0, state.pages).map(list => {
       let body = '';
-      rows.slice(p*rpp, (p+1)*rpp).forEach((row, ri) => {
-        const y = y0 + ri*rowH;
-        if (lw && row.label) body += `<text x="${n(x0 + lw*0.45)}" y="${n(y + rowH/2)}" font-size="${n(s*0.66)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(row.label)}</text>`;
-        row.cells.forEach(([ch, kind], ci) => {
+      list.forEach(({ it, y: yy }) => {
+        const y = Y0 + yy;
+        if (it.type === 'strip'){ body += drawStrip(it.c, x0, y + 2, sb, slw, scols, lc); return; }
+        if (lw && it.label) body += `<text x="${n(x0 + lw*0.45)}" y="${n(y + rowH/2)}" font-size="${n(s*0.66)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(it.label)}</text>`;
+        it.cells.forEach(([ch, kind], ci) => {
           const x = x0 + lw + ci*unit;
           if (mode === 'char') body += cell(x, y, s, ch, kind, lc);
           else if (mode === 'charbpmf') body += cell(x, y, s, ch, kind, lc) + zyCell(x + s, y, s*0.42, s, ch && zy[ch], kind, lc, false);
           else body += zyCell(x, y, unit, rowH, ch && zy[ch], kind, lc, true);
         });
       });
-      pages.push(body);
-    }
-    return pages;
+      return body;
+    }).concat(Array(state.pages).fill('')).slice(0, state.pages);
   }
 
   /* ---------- 英文四線格 ---------- */
@@ -442,19 +599,105 @@ fieldset:disabled legend{opacity:.5}
   const printBtn = document.getElementById('printBtn');
   const statusEl = document.getElementById('status');
 
+  /* ---------- 教育部辭典自動比對（萌典 API，資料為教育部《重編國語辭典修訂本》） ---------- */
+  const dictData = {};
+  const DICT_SRC = [
+    c => `https://www.moedict.tw/uni/${encodeURIComponent(c)}.json`,
+    c => `https://www.moedict.tw/raw/${encodeURIComponent(c)}.json`,
+    c => `https://www.moedict.tw/a/${encodeURIComponent(c)}.json`,
+    c => `https://www.moedict.tw/uni/${encodeURIComponent(c)}`
+  ];
+  const clean = v => String(v == null ? '' : v).replace(/`|~|\{\[[0-9a-f]+\]\}/gi, '').trim();
+  function parseDict(c, j){
+    if (!j || typeof j !== 'object') return null;
+    const title = clean(j.title != null ? j.title : j.t);
+    if (title && title !== c) return null;
+    const hs = j.heteronyms || j.h;
+    if (!Array.isArray(hs) || !hs.length) return null;
+    const readings = [];
+    hs.forEach(h => {
+      const raw = clean(h.bopomofo != null ? h.bopomofo : h.b);
+      raw.replace(/（[^）]*）|\([^)]*\)/g, ' ').trim().split(/\s+/).forEach((zy, i) => {
+        if (i > 0 || !parseZy(zy)) return;
+        const defs = h.definitions || h.d || [];
+        const surname = Array.isArray(defs) && defs.some(d => /^姓/.test(clean(d && (d.def != null ? d.def : d.f))));
+        const ex = readings.find(x => x.zy === zy);
+        if (ex) ex.surname = ex.surname || surname; else readings.push({ zy, surname });
+      });
+    });
+    return { readings, strokes: +(j.stroke_count != null ? j.stroke_count : j.c) || 0, radical: clean(j.radical != null ? j.radical : j.r) };
+  }
+  async function loadDict(c){
+    dictData[c] = 'loading';
+    let result = null, notFound = 0, failed = 0;
+    for (const src of DICT_SRC){
+      try {
+        const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+        const r = await fetch(src(c), { signal: ctl.signal, headers: { Accept: 'application/json' } });
+        clearTimeout(t);
+        if (r.status === 404){ notFound++; continue; }
+        if (!r.ok){ failed++; continue; }
+        const text = await r.text();
+        let j; try { j = JSON.parse(text); } catch(e){ failed++; continue; }
+        const d = parseDict(c, j);
+        if (d){ result = d; break; }
+        notFound++;
+      } catch(e){ failed++; }
+    }
+    if (result){
+      dictData[c] = result;
+      if (result.readings.length && !state.zhuyin[c]){
+        const first = [...state.name.trim()][0] === c;
+        const pick = (first && result.readings.find(x => x.surname)) || result.readings[0];
+        state.zhuyin[c] = pick.zy; saveZy();
+      }
+    } else dictData[c] = (notFound > 0 && failed < DICT_SRC.length) && notFound >= 2 ? 'missing' : 'blocked';
+    const card = [...checksEl.querySelectorAll('.ck')].find(el => el.dataset.c === c);
+    if (card) refreshCard(card);
+    updateStatus(); schedule();
+  }
+  function miniLink(c){
+    const d = dictData[c];
+    if (d && d.strokes && d.radical) return `https://dict.mini.moe.edu.tw/SearchIndex/Stroke3?stroke=${d.strokes}&radical=${encodeURIComponent(d.radical)}`;
+    return 'https://dict.mini.moe.edu.tw/';
+  }
+  function dictHTML(c){
+    const d = dictData[c];
+    if (d === undefined || d === 'loading') return '正在查詢教育部辭典…';
+    if (d === 'blocked') return '<span class="warn">無法連線自動查詢</span>請點「查國語小字典」，在首頁輸入這個字手動確認。';
+    if (d === 'missing') return '<span class="warn">教育部辭典查不到這個字</span>請確認是否打錯字，或到國語小字典再查一次。';
+    let h = `<span class="good">✓ 教育部辭典有收錄</span>${d.radical ? `部首「${esc(d.radical)}」，` : ''}${d.strokes ? `共 ${d.strokes} 畫` : ''}`;
+    const sd = strokeData[c];
+    if (state.strokes && sd && sd.paths && d.strokes && sd.paths.length !== d.strokes)
+      h += `<span class="warn">筆順資料是 ${sd.paths.length} 畫，和辭典的 ${d.strokes} 畫不同，請到小字典確認</span>`;
+    if (needZy() && d.readings.length){
+      const cur = state.zhuyin[c] || '';
+      if (cur && parseZy(cur) && !d.readings.some(x => x.zy === cur.replace(/\s/g,'')))
+        h += '<span class="warn">這個注音不在教育部辭典的讀音裡</span>';
+      h += `<div class="rds">${d.readings.map(x => `<button type="button" class="rd${x.zy === cur ? ' on' : ''}" data-zy="${esc(x.zy)}">${esc(x.zy)}${x.surname ? '<small>姓</small>' : ''}</button>`).join('')}</div>`;
+      if (d.readings.length > 1) h += '<span>這個字有多個讀音，請選正確的那個（標「姓」的是當姓氏的讀音）。</span>';
+    }
+    if (d.strokes && d.radical){
+      h += `<span style="display:block;margin-top:4px">「查國語小字典」會打開「${esc(d.radical)}部、${d.strokes} 畫」的字表，點選「${esc(c)}」即可看到字形和注音。</span>`;
+    }
+    return h;
+  }
+
   function renderChecks(){
     document.getElementById('checkField').hidden = !needCheck.length;
     const z = needZy();
     document.getElementById('zyTools').hidden = !z || !needCheck.length;
     document.getElementById('checkHint').textContent = z
-      ? '點「查字典」打開教育部國語小字典，確認字形和注音都一樣，再按「正確」。全部確認後才能列印。'
-      : '點「查字典」打開教育部國語小字典，確認筆畫和這裡一樣，再按「字形正確」。全部確認後才能列印。';
+      ? '輸入名字後會自動查詢教育部辭典的收錄、筆畫和讀音。請再點「查國語小字典」核對字形與注音，確認後按「正確」。每個字都確認後才會產生練習紙。'
+      : '輸入名字後會自動查詢教育部辭典的收錄和筆畫數。請再點「查國語小字典」核對字形，確認後按「字形正確」。每個字都確認後才會產生練習紙。';
     checksEl.innerHTML = needCheck.map(c =>
       `<div class="ck" data-c="${esc(c)}">`+
         `<div class="g" style="font-family:${KAI}"><span>${esc(c)}</span></div>`+
+        `<div class="body"><div class="dict" aria-live="polite"></div>`+
         (z ? `<input class="zy" type="text" aria-label="${esc(c)} 的注音" placeholder="注音" value="${esc(state.zhuyin[c] || '')}" autocomplete="off">` : '')+
-        `<a href="https://dict.mini.moe.edu.tw/search.jsp?md=1&amp;word=${encodeURIComponent(c)}" target="_blank" rel="noopener">查字典</a>`+
-        `<button type="button"></button></div>`
+        `<div class="acts"><a class="mini" href="https://dict.mini.moe.edu.tw/" target="_blank" rel="noopener">查國語小字典</a>`+
+        `<a href="https://www.moedict.tw/${encodeURIComponent(c)}" target="_blank" rel="noopener">萌典</a>`+
+        `<button type="button" class="cf"></button></div></div></div>`
     ).join('');
     checksEl.querySelectorAll('.ck').forEach(refreshCard);
     lastZy = checksEl.querySelector('.zy');
@@ -466,9 +709,14 @@ fieldset:disabled legend{opacity:.5}
     const ok = valid && confirmed.has(keyOf(c));
     card.classList.toggle('ok', ok);
     const inp = card.querySelector('.zy');
-    if (inp) inp.classList.toggle('bad', !!state.zhuyin[c] && !valid);
-    const b = card.querySelector('button');
-    b.disabled = !valid;
+    if (inp){ inp.classList.toggle('bad', !!state.zhuyin[c] && !valid); if (document.activeElement !== inp) inp.value = state.zhuyin[c] || ''; }
+    const dd = dictData[c];
+    card.querySelector('.dict').innerHTML = dictHTML(c);
+    const ml = card.querySelector('.mini');
+    ml.href = miniLink(c);
+    ml.title = dd && dd.strokes ? `打開小字典的「${dd.radical}部 ${dd.strokes} 畫」列表，點選「${c}」` : '打開國語小字典首頁，輸入這個字查詢';
+    const b = card.querySelector('.cf');
+    b.disabled = !valid || dd === 'loading' || dd === undefined;
     b.setAttribute('aria-pressed', ok);
     b.textContent = (ok ? '✓ ' : '') + (z ? '正確' : '字形正確');
   }
@@ -532,13 +780,20 @@ fieldset:disabled legend{opacity:.5}
   function updateStatus(){
     const p = pending();
     printBtn.disabled = p.length > 0;
+    document.getElementById('viewBtn').disabled = p.length > 0;
     statusEl.classList.toggle('ready', !p.length && needCheck.length > 0);
     statusEl.textContent = p.length
       ? `還有 ${p.length} 個字要${needZy() ? '填注音並' : ''}對照：${p.join('、')}`
       : (needCheck.length ? '字形都對照好了，可以列印。' : '');
   }
   checksEl.addEventListener('click', e => {
-    const btn = e.target.closest('button'); if (!btn) return;
+    const rd = e.target.closest('.rd');
+    if (rd){
+      const card = rd.closest('.ck'), c = card.dataset.c;
+      state.zhuyin[c] = rd.dataset.zy; saveZy(); refreshCard(card); updateStatus(); schedule();
+      return;
+    }
+    const btn = e.target.closest('.cf'); if (!btn) return;
     const c = btn.closest('.ck').dataset.c, k = keyOf(c);
     confirmed.has(k) ? confirmed.delete(k) : confirmed.add(k);
     saveConfirmed(); refreshCard(btn.closest('.ck')); updateStatus(); render();
@@ -559,10 +814,20 @@ fieldset:disabled legend{opacity:.5}
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
     document.getElementById('contentSet').disabled = !!latin;
     if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
-    const unchecked = pending().length > 0;
+    strokeChars = (state.strokes && state.content !== 'bpmf') ? cjkList : [];
+    strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
+    strokeStatus();
+    cjkList.forEach(c => { if (!(c in dictData)) loadDict(c); });
+    const waiting = latin ? [] : pending();
+    const justDone = raw && render.prevWaiting > 0 && waiting.length === 0;
+    render.prevWaiting = waiting.length;
+    const unchecked = false;
     const lc = LINE[state.lineColor];
     let bodies;
-    if (!raw){
+    if (raw && waiting.length){
+      bodies = [`<text x="${W/2}" y="${H/2 - 10}" font-size="7" font-family="${KAI}" fill="#8E9894" text-anchor="middle">完成教育部辭典對照後，就會產生練習紙</text>`+
+        `<text x="${W/2}" y="${H/2 + 4}" font-size="5" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">還要確認：${esc(waiting.join('、'))}</text>`];
+    } else if (!raw){
       bodies = [`<text x="${W/2}" y="${H/2}" font-size="9" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">在左邊輸入名字</text>`];
     } else if (latin){
       bodies = latinPages(raw.replace(/\s+/g,' '));
@@ -572,10 +837,12 @@ fieldset:disabled legend{opacity:.5}
     const title = raw ? `${raw} 的${!latin && state.content === 'bpmf' ? '注音' : '寫字'}練習` : '';
     preview.innerHTML = bodies.map((b, i) =>
       `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
-      `<rect width="${W}" height="${H}" fill="#fff"/>${raw ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
+      `<rect width="${W}" height="${H}" fill="#fff"/>${raw && !waiting.length ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
       (unchecked ? `<text x="${W-M}" y="${H-5}" font-size="3.4" font-family="${KAI}" fill="#D65A4A" text-anchor="end">尚未完成國語小字典${needZy() ? '字形與注音' : '字形'}對照</text>` : '') + `</svg>`+
       (bodies.length > 1 ? `<div class="num">第 ${i+1} 頁，共 ${bodies.length} 頁</div>` : '') + `</div>`
     ).join('');
+    if (justDone) setTimeout(openViewer, 60);
+    else if (!viewer.hidden) viewerShow();
   }
 
   let queued = false;
@@ -594,8 +861,51 @@ fieldset:disabled legend{opacity:.5}
     const el = document.getElementById(id), o = document.getElementById(out);
     el.addEventListener('input', () => { state[id] = +el.value; o.textContent = el.value; schedule(); });
   });
+  const stk = document.getElementById('strokes');
+  stk.addEventListener('change', () => { state.strokes = stk.checked; schedule(); });
   const hdr = document.getElementById('header');
   hdr.addEventListener('change', () => { state.header = hdr.checked; schedule(); });
+
+  /* ---------- 預覽視窗 ---------- */
+  const viewer = document.getElementById('viewer'), vStage = document.getElementById('vStage');
+  let vIdx = 0, lastFocus = null;
+  function viewerShow(){
+    const sheets = [...preview.querySelectorAll('.sheet svg')];
+    if (!sheets.length) return;
+    vIdx = Math.min(vIdx, sheets.length - 1);
+    vStage.innerHTML = sheets[vIdx].outerHTML;
+    document.getElementById('vPage').textContent = `${vIdx + 1} / ${sheets.length}`;
+    document.getElementById('vPrev').disabled = vIdx === 0;
+    document.getElementById('vNext').disabled = vIdx >= sheets.length - 1;
+  }
+  function openViewer(){
+    lastFocus = document.activeElement; vIdx = 0;
+    viewer.hidden = false; document.body.style.overflow = 'hidden';
+    viewerShow(); document.getElementById('vClose').focus();
+  }
+  function closeViewer(){
+    viewer.hidden = true; document.body.style.overflow = '';
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  const setZoom = wide => {
+    vStage.classList.toggle('wide', wide);
+    document.getElementById('vFit').setAttribute('aria-pressed', !wide);
+    document.getElementById('vWide').setAttribute('aria-pressed', wide);
+  };
+  document.getElementById('viewBtn').addEventListener('click', openViewer);
+  document.getElementById('vClose').addEventListener('click', closeViewer);
+  document.getElementById('vPrev').addEventListener('click', () => { vIdx--; viewerShow(); });
+  document.getElementById('vNext').addEventListener('click', () => { vIdx++; viewerShow(); });
+  document.getElementById('vFit').addEventListener('click', () => setZoom(false));
+  document.getElementById('vWide').addEventListener('click', () => setZoom(true));
+  document.getElementById('vPrint').addEventListener('click', () => { closeViewer(); setTimeout(() => { try { window.print(); } catch(e){} }, 50); });
+  viewer.addEventListener('click', e => { if (e.target === viewer || e.target === vStage) closeViewer(); });
+  document.addEventListener('keydown', e => {
+    if (viewer.hidden) return;
+    if (e.key === 'Escape') closeViewer();
+    else if (e.key === 'ArrowLeft' && vIdx > 0){ vIdx--; viewerShow(); }
+    else if (e.key === 'ArrowRight'){ const n = preview.querySelectorAll('.sheet svg').length; if (vIdx < n - 1){ vIdx++; viewerShow(); } }
+  });
 
   document.getElementById('printBtn').addEventListener('click', () => {
     try { window.print(); } catch(e) { alert('請按 Ctrl+P（Mac 按 ⌘+P）列印。'); }
