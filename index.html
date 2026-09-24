@@ -23,10 +23,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Andika:wght@400;700&display=swap" rel="stylesheet">
 <style>
+/* 教育部標準楷書：請把字型檔改名為 edukai.ttf，放在和 index.html 同一個資料夾 */
+@font-face{font-family:'EduKai';src:url('edukai.ttf') format('truetype');font-display:swap}
 :root{
   --desk:#E4ECE6; --panel:#FFFFFF; --ink:#1F2A25; --muted:#5C6B64;
   --grid:#3E9A6A; --grid-soft:#D3E6D9; --pencil:#F2C744; --pencil-ink:#2A2413; --line:#D2DCD5;
-  --kai:'Iansui','TW-Kai','BiauKai','DFKai-SB','標楷體',serif;
+  --kai:'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif;
   --sans:system-ui,-apple-system,'PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
@@ -208,24 +210,10 @@ fieldset:disabled legend{opacity:.5}
       <p class="hint" id="modeHint">中文字會放在格子裡；英文名字會改用四線格。</p>
     </div>
 
-    <fieldset class="field" id="fontSet">
-      <legend>字體</legend>
-      <div class="seg">
-        <label><input type="radio" name="font" value="iansui" checked><span>芫荽（硬筆楷書）</span></label>
-        <label><input type="radio" name="font" value="biaukai" id="fontBiau"><span>標楷體（電腦內建）</span></label>
-      </div>
-      <p class="hint" id="fontHint">兩種字體都依照教育部標準字體設計。</p>
-    </fieldset>
-
-    <fieldset class="field" id="contentSet">
-      <legend>練習內容</legend>
-      <div class="seg">
-        <label><input type="radio" name="content" value="char" checked><span>國字</span></label>
-        <label><input type="radio" name="content" value="charbpmf"><span>國字＋注音</span></label>
-        <label><input type="radio" name="content" value="bpmf"><span>注音</span></label>
-      </div>
-      <p class="hint" id="contentHint">「注音」會把每個字的注音直著寫，右邊一小欄寫聲調。</p>
-    </fieldset>
+    <div class="field">
+      <span style="font-weight:600;font-size:15px">字體：教育部標準楷書</span>
+      <p class="hint" id="fontHint">標楷體字型載入中…</p>
+    </div>
 
     <div class="field" id="checkField">
       <span style="font-weight:600;font-size:15px">對照國語小字典</span>
@@ -349,14 +337,10 @@ fieldset:disabled legend{opacity:.5}
   const LINE = { green:'#3E9A6A', red:'#D65A4A', gray:'#8E9894' };
   const TRACE = { gray:'#C6CBC8', red:'#F2ADA3', outline:'#7D8582' };
   const INK = '#1D1F1E';
-  const FONTS = {
-    iansui: "'Iansui','TW-Kai','BiauKai','DFKai-SB','標楷體',serif",
-    biaukai: "'TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif"
-  };
-  let KAI = FONTS.iansui;
+  const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'iansui', content:'char', strokes:true };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -881,7 +865,6 @@ fieldset:disabled legend{opacity:.5}
     const cjkList = latin ? [] : [...new Set([...raw].filter(c => CJK.test(c)))];
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
-    document.getElementById('contentSet').disabled = !!latin;
     if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
     strokeChars = (state.strokes && state.content !== 'bpmf') ? cjkList : [];
     strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
@@ -923,7 +906,7 @@ fieldset:disabled legend{opacity:.5}
 
   ['grid','layout','traceStyle','size','lineColor','font','content'].forEach(key => {
     document.querySelectorAll(`input[name="${key}"]`).forEach(el => el.addEventListener('change', () => {
-      state[key] = key === 'size' ? +el.value : el.value; if (key === 'font') KAI = FONTS[state.font]; schedule();
+      state[key] = key === 'size' ? +el.value : el.value; schedule();
     }));
   });
   [['trace','traceOut'],['pages','pagesOut']].forEach(([id, out]) => {
@@ -1171,13 +1154,18 @@ fieldset:disabled legend{opacity:.5}
       const draw = f => { x.clearRect(0,0,120,60); x.font = '50px ' + f; x.fillText('胡永', 0, 50); return x.getImageData(0,0,120,60).data.join(','); };
       const stack = "'TW-Kai','BiauKai','DFKai-SB','標楷體',";
       return draw(stack + 'serif') !== draw('serif') || draw(stack + 'monospace') !== draw('monospace');
-    } catch(e){ return true; }
+    } catch(e){ return false; }
   }
-  if (!hasLocalKai()){
-    const r = document.getElementById('fontBiau'); r.disabled = true;
-    r.nextElementSibling.style.opacity = '.4';
-    document.getElementById('fontHint').textContent = '這台裝置沒有安裝標楷體，請使用芫荽。兩者都依照教育部標準字體設計。';
-  }
+  const fontHint = document.getElementById('fontHint');
+  document.fonts.load("40px 'EduKai'", '永胡').then(list => {
+    if (list && list.length){ fontHint.textContent = '字型：教育部標準楷書（中華民國教育部，CC BY-ND 3.0 TW）。'; imgCache.clear(); render(); return; }
+    throw 0;
+  }).catch(() => {
+    fontHint.textContent = hasLocalKai()
+      ? '使用這台裝置內建的標楷體顯示。'
+      : '找不到標楷體字型檔（edukai.ttf），暫時用「芫荽」顯示，字形同樣依照教育部標準。';
+  });
+  fontHint.textContent = '標楷體字型載入中（檔案較大，第一次需要等幾秒）…';
 
   render();
   const loads = [document.fonts.load("100px 'Andika'", 'Hxg'), document.fonts.load("40px 'Iansui'", '王小明胡寫名字')];
