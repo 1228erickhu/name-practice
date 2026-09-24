@@ -148,6 +148,7 @@ fieldset:disabled legend{opacity:.5}
 .vbar .vprint{background:var(--pencil);color:var(--pencil-ink);border-color:var(--pencil)}
 .vbar #vPage{font-variant-numeric:tabular-nums;min-width:4.5em;text-align:center}
 .vsp{flex:1}
+.vnote{padding:10px 14px;background:#FFF4CC;color:#3A3000;font-size:14px;line-height:1.6}
 .vpdf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#22342A;color:#E4EDE8;font-size:15px}
 .vpdf a,.vpdf button{appearance:none;font:700 15px var(--sans);padding:8px 14px;border-radius:8px;background:var(--pencil);color:var(--pencil-ink);text-decoration:none;border:0;cursor:pointer}
 .vpdf a:focus-visible,.vpdf button:focus-visible{outline:3px solid #fff;outline-offset:2px}
@@ -317,6 +318,7 @@ fieldset:disabled legend{opacity:.5}
     <button type="button" class="vprint" id="vPrint">列印</button>
     <button type="button" id="vClose" aria-label="關閉預覽">關閉</button>
   </div>
+  <div class="vnote" id="vNote" hidden role="note"></div>
   <div class="vpdf" id="vPdf" hidden role="status">
     <span id="pdfMsg"></span>
     <a id="pdfOpen" target="_blank" rel="noopener" hidden>開啟 PDF</a>
@@ -457,7 +459,11 @@ fieldset:disabled legend{opacity:.5}
         }
         return d + 'Z';
       });
-      return { paths, dim: Math.max(2150, Math.ceil(max)) };
+      const tracks = list.map(st => {
+        const t = st && (st.track || st.tracks);
+        return Array.isArray(t) ? t.filter(pt => pt && isFinite(pt.x) && isFinite(pt.y)).map(pt => [+pt.x, +pt.y]) : [];
+      });
+      return { paths, tracks, dim: Math.max(2150, Math.ceil(max)) };
     } catch(e){ return null; }
   }
   async function loadStrokes(c){
@@ -495,13 +501,62 @@ fieldset:disabled legend{opacity:.5}
     }
   }
 
-  function drawStrip(c, x0, y, sb, slw, scols, lc){
+  const PAL = ['#E53935','#1E88E5','#43A047','#8E24AA','#F4511E','#00897B','#D81B60','#3949AB','#795548','#F9A825'];
+  function drawDiagram(d, x, y, D, lc){
+    const pad = D * 0.07, k = (D - 2*pad) / d.dim;
+    const X = v => x + pad + v * k, Y = v => y + pad + v * k;
+    const dd = `stroke="${lc}" stroke-width="0.18" stroke-dasharray="1 1" opacity="0.5"`;
+    let g = `<rect x="${n(x)}" y="${n(y)}" width="${n(D)}" height="${n(D)}" fill="#fff" stroke="${lc}" stroke-width="0.35"/>`+
+      line(x + D/2, y, x + D/2, y + D, dd) + line(x, y + D/2, x + D, y + D/2, dd);
+    g += `<g transform="translate(${n(x+pad)} ${n(y+pad)}) scale(${k.toFixed(6)})">`;
+    d.paths.forEach((p, i) => { g += `<path d="${p}" fill="${PAL[i % PAL.length]}" opacity="0.28"/>`; });
+    g += '</g>';
+    const lw = Math.max(0.45, D * 0.014), r = Math.max(2, D * 0.055);
+    const labels = [];
+    d.paths.forEach((_, i) => {
+      const col = PAL[i % PAL.length];
+      const tr = (d.tracks && d.tracks[i]) || [];
+      if (!tr.length) return;
+      const pts = tr.map(([a, b]) => [X(a), Y(b)]);
+      let ux = 0, uy = 0;
+      if (pts.length >= 2){
+        g += `<path d="M${pts.map(q => n(q[0]) + ' ' + n(q[1])).join('L')}" fill="none" stroke="${col}" stroke-width="${n(lw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        const e = pts[pts.length - 1];
+        let j = pts.length - 2;
+        while (j > 0 && Math.hypot(e[0] - pts[j][0], e[1] - pts[j][1]) < 0.5) j--;
+        let vx = e[0] - pts[j][0], vy = e[1] - pts[j][1], L = Math.hypot(vx, vy) || 1;
+        vx /= L; vy /= L;
+        const h = r * 1.15, w = r * 0.85, px = -vy, py = vx;
+        const tip = [e[0] + vx * h * 0.45, e[1] + vy * h * 0.45], bc = [e[0] - vx * h * 0.55, e[1] - vy * h * 0.55];
+        g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${col}"/>`;
+        let k2 = 1;
+        while (k2 < pts.length - 1 && Math.hypot(pts[k2][0] - pts[0][0], pts[k2][1] - pts[0][1]) < 0.5) k2++;
+        ux = pts[k2][0] - pts[0][0]; uy = pts[k2][1] - pts[0][1];
+        const L0 = Math.hypot(ux, uy) || 1; ux /= L0; uy /= L0;
+      }
+      let ang = (pts.length >= 2) ? Math.atan2(-uy, -ux) : -Math.PI * 3/4;
+      let cx, cy;
+      for (let t = 0; t < 12; t++){
+        const a = ang + (t % 2 ? 1 : -1) * Math.ceil(t / 2) * (Math.PI / 5);
+        cx = Math.min(x + D - r - 0.3, Math.max(x + r + 0.3, pts[0][0] + Math.cos(a) * r * 1.5));
+        cy = Math.min(y + D - r - 0.3, Math.max(y + r + 0.3, pts[0][1] + Math.sin(a) * r * 1.5));
+        if (!labels.some(([lx, ly]) => Math.hypot(lx - cx, ly - cy) < r * 1.9)) break;
+      }
+      labels.push([cx, cy]);
+      g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.8)}"/>`+
+        `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*1.3)}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
+    });
+    return g;
+  }
+
+  function drawStrip(c, x0, y, sb, slw, scols, lc, D){
     const d = strokeData[c], pad = sb * 0.1, k = (sb - 2*pad) / d.dim;
-    let g = `<text x="${n(x0 + slw*0.32)}" y="${n(y + sb/2)}" font-size="${n(sb*0.7)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`+
-      `<text x="${n(x0 + slw*0.78)}" y="${n(y + sb/2)}" font-size="${n(Math.max(2.6, sb*0.26))}" font-family="${KAI}" fill="#666" text-anchor="middle" dominant-baseline="central">${d.paths.length}畫</text>`;
+    let g = drawDiagram(d, x0, y, D, lc) +
+      `<text x="${n(x0 + slw)}" y="${n(y + Math.ceil(d.paths.length / scols) * sb + 1)}" font-size="3.4" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，照著數字和箭頭的方向寫。</text>`;
+    x0 += slw;
     const dd = `stroke="${lc}" stroke-width="0.15" stroke-dasharray="0.8 0.8" opacity="0.5"`;
     d.paths.forEach((_, i) => {
-      const bx = x0 + slw + (i % scols) * sb, by = y + Math.floor(i / scols) * sb;
+      const bx = x0 + (i % scols) * sb, by = y + Math.floor(i / scols) * sb;
       g += `<rect x="${n(bx)}" y="${n(by)}" width="${n(sb)}" height="${n(sb)}" fill="none" stroke="${lc}" stroke-width="0.25"/>`+
         line(bx + sb/2, by, bx + sb/2, by + sb, dd) + line(bx, by + sb/2, bx + sb, by + sb/2, dd);
       g += `<g transform="translate(${n(bx+pad)} ${n(by+pad)}) scale(${k.toFixed(6)})">`;
@@ -521,12 +576,12 @@ fieldset:disabled legend{opacity:.5}
     const gridW = lw + cols * unit, x0 = M + (CW - gridW) / 2;
     const Y0 = top(), AH = availH();
 
-    const sb = Math.min(14, Math.max(9, s * 0.6)), slw = sb * 1.8;
+    const sb = Math.min(13, Math.max(9, s * 0.55)), D = Math.min(46, Math.max(32, s * 1.9)), slw = D + 4;
     const scols = Math.max(1, Math.floor((gridW - slw) / sb));
     const useStrokes = state.strokes && mode !== 'bpmf';
     const strip = c => {
       const d = useStrokes && strokeData[c];
-      return d && d.paths ? { type:'strip', c, h: 2 + Math.ceil(d.paths.length / scols) * sb + 3 } : null;
+      return d && d.paths ? { type:'strip', c, h: 2 + Math.max(D, Math.ceil(d.paths.length / scols) * sb + 6) + 4 } : null;
     };
     const makeRow = c => {
       let cells = [];
@@ -572,7 +627,7 @@ fieldset:disabled legend{opacity:.5}
       let body = '';
       list.forEach(({ it, y: yy }) => {
         const y = Y0 + yy;
-        if (it.type === 'strip'){ body += drawStrip(it.c, x0, y + 2, sb, slw, scols, lc); return; }
+        if (it.type === 'strip'){ body += drawStrip(it.c, x0, y + 2, sb, slw, scols, lc, D); return; }
         if (lw && it.label) body += `<text x="${n(x0 + lw*0.45)}" y="${n(y + rowH/2)}" font-size="${n(s*0.66)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(it.label)}</text>`;
         it.cells.forEach(([ch, kind], ci) => {
           const x = x0 + lw + ci*unit;
@@ -933,7 +988,18 @@ fieldset:disabled legend{opacity:.5}
     imgCache.set(key, url);
     return url;
   }
+  function viewerNote(){
+    const el = document.getElementById('vNote');
+    const st = state.strokes ? strokeChars.map(c => strokeData[c]) : [];
+    let msg = '';
+    if (st.includes('blocked'))
+      msg = '這個視窗沒辦法下載教育部筆順資料，所以練習紙上沒有筆順示範（數字和箭頭）。請改用 GitHub Pages 的網址開啟：1228erickhu.github.io/name-practice';
+    else if (st.includes('loading')) msg = '筆順資料載入中，稍等一下會自動加上筆順示範…';
+    else if (st.includes('missing')) msg = '有些字查不到教育部筆順資料，這些字不會顯示筆順示範。';
+    el.textContent = msg; el.hidden = !msg;
+  }
   async function viewerShow(){
+    viewerNote();
     const sheets = [...preview.querySelectorAll('.sheet svg')];
     if (!sheets.length) return;
     vIdx = Math.max(0, Math.min(vIdx, sheets.length - 1));
@@ -1057,7 +1123,18 @@ fieldset:disabled legend{opacity:.5}
         ctx.beginPath(); ctx.moveTo(+A('x1'), +A('y1')); ctx.lineTo(+A('x2'), +A('y2'));
         strokeIt(ctx, el);
       } else if (tag === 'path'){
-        const f = A('fill'); if (f !== 'none'){ ctx.fillStyle = f || '#000'; ctx.fill(new Path2D(A('d'))); }
+        const p2 = new Path2D(A('d')), f = A('fill');
+        if (f !== 'none'){ ctx.fillStyle = f || '#000'; ctx.fill(p2); }
+        const st = A('stroke');
+        if (st && st !== 'none'){
+          ctx.strokeStyle = st; ctx.lineWidth = +A('stroke-width') || 1; ctx.setLineDash([]);
+          ctx.lineCap = A('stroke-linecap') || 'butt'; ctx.lineJoin = A('stroke-linejoin') || 'miter';
+          ctx.stroke(p2);
+        }
+      } else if (tag === 'circle'){
+        ctx.beginPath(); ctx.arc(+A('cx'), +A('cy'), +A('r'), 0, Math.PI * 2);
+        const f = A('fill'); if (f && f !== 'none'){ ctx.fillStyle = f; ctx.fill(); }
+        strokeIt(ctx, el);
       } else if (tag === 'text') drawText(ctx, el);
       ctx.restore();
     }
