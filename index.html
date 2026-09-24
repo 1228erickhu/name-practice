@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>寫名字練習紙</title>
+<script>
+/* 從 LINE 內建瀏覽器打開時，自動改用手機的預設瀏覽器（Safari／Chrome）開啟 */
+(function(){
+  try {
+    if (!/\bLine\//i.test(navigator.userAgent)) return;
+    var u = new URL(location.href);
+    if (u.searchParams.get('openExternalBrowser') !== '1'){
+      u.searchParams.set('openExternalBrowser', '1');
+      location.replace(u.toString());
+    } else {
+      document.documentElement.classList.add('in-line');
+    }
+  } catch(e){}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Iansui&family=Andika:wght@400;700&display=swap" rel="stylesheet">
@@ -29,6 +44,9 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
 [hidden]{display:none!important}
+.linebar{display:none;background:#FFF4CC;color:#3A3000;border-bottom:1px solid #E8D48A;padding:12px 16px;font-size:15px;line-height:1.6}
+.in-line .linebar{display:block}
+.linebar b{font-weight:700}
 body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--sans);line-height:1.6}
 
 .top{max-width:1180px;margin:0 auto;padding:28px 20px 8px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 28px}
@@ -91,8 +109,14 @@ fieldset:disabled legend{opacity:.5}
 .ck .g span{position:relative;z-index:1}
 .ck a{font-size:13px;color:var(--grid);font-weight:600}
 .ck a:focus-visible,.ck button:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
-.ck button{appearance:none;font:600 13px var(--sans);padding:4px 10px;border-radius:999px;border:1.5px solid var(--grid);background:transparent;color:var(--grid);cursor:pointer}
-.ck.ok button{background:var(--grid);color:var(--panel)}
+.ck .cf{appearance:none;font:700 15px var(--sans);padding:8px 16px;border-radius:999px;border:0;background:var(--pencil);color:var(--pencil-ink);cursor:pointer;box-shadow:0 2px 0 #C79E1E}
+.ck.ok .cf{background:var(--grid);color:var(--panel);box-shadow:none}
+.ck.flash{animation:flash 1.2s ease 2}
+@keyframes flash{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 4px var(--pencil)}}
+.allok{appearance:none;font:700 15px var(--sans);padding:10px 14px;border-radius:10px;border:2px solid var(--grid);background:var(--grid);color:var(--panel);cursor:pointer}
+.allok:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.locked{opacity:.55}
+.mbar button.locked{opacity:1;background:var(--line);border-color:var(--line);color:var(--ink)}
 .ck .zy{width:110px;font:22px var(--kai);text-align:center;padding:4px 6px;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
 .ck .zy.bad{border-color:#D65A4A}
 .ck .zy:focus-visible{outline:3px solid var(--pencil);outline-offset:1px}
@@ -154,7 +178,7 @@ fieldset:disabled legend{opacity:.5}
 @media print{
   :root{padding:0}
   body{background:#fff}
-  .top,.panel,.sheet .num,.viewer,.mbar{display:none!important}
+  .top,.panel,.sheet .num,.viewer,.mbar,.linebar{display:none!important}
   body.has-mbar{padding-bottom:0}
   .layout{display:block;padding:0;max-width:none}
   .preview{display:block}
@@ -166,6 +190,9 @@ fieldset:disabled legend{opacity:.5}
 </head>
 <body>
 
+<div class="linebar" role="note">
+  <b>你正在用 LINE 內建的瀏覽器開啟本網站</b>，這裡無法預覽和下載 PDF。請點畫面右上角或右下角的選單，選擇「<b>用預設瀏覽器開啟</b>」（iPhone 會用 Safari、Android 會用 Chrome）。
+</div>
 <header class="top">
   <h1 class="title" aria-label="寫名字">
     <span><b>寫</b></span><span class="t"><b>名</b></span><span class="g"><b>字</b></span>
@@ -204,6 +231,7 @@ fieldset:disabled legend{opacity:.5}
       <span style="font-weight:600;font-size:15px">對照國語小字典</span>
       <p class="hint" id="checkHint">點「查字典」打開教育部國語小字典，確認筆畫和這裡一樣，再按「字形正確」。全部確認後才能列印。</p>
       <div class="checks" id="checks"></div>
+      <button type="button" class="allok" id="allOk" hidden>我已核對過，全部確認正確</button>
       <div id="zyTools" class="zytools" hidden>
         <button type="button" class="auto" id="autoZy" hidden>請 Claude 先填注音</button>
         <p class="hint" id="autoMsg" role="status"></p>
@@ -805,15 +833,26 @@ fieldset:disabled legend{opacity:.5}
   function pending(){ return needCheck.filter(c => (needZy() && !parseZy(state.zhuyin[c])) || !confirmed.has(keyOf(c))); }
   function updateStatus(){
     const p = pending();
-    printBtn.disabled = p.length > 0;
-    document.getElementById('viewBtn').disabled = p.length > 0;
-    document.getElementById('pdfBtn').disabled = p.length > 0;
-    const showBar = !p.length && !!state.name.trim();
+    const lock = p.length > 0;
+    ['printBtn','viewBtn','pdfBtn','mView','mPdf'].forEach(id => {
+      const b = document.getElementById(id); b.disabled = false; b.classList.toggle('locked', lock);
+    });
+    const mView = document.getElementById('mView'), mPdf = document.getElementById('mPdf');
+    mView.textContent = lock ? `還有 ${p.length} 個字要確認` : '預覽練習紙';
+    mPdf.hidden = lock;
+    const showBar = !!state.name.trim();
     document.getElementById('mbar').hidden = !showBar;
     document.body.classList.toggle('has-mbar', showBar);
+    const allOk = document.getElementById('allOk');
+    const canAll = lock && needCheck.length > 0 && needCheck.every(c => {
+      const d = dictData[c];
+      if (!d || typeof d !== 'object') return false;
+      return !needZy() || !!parseZy(state.zhuyin[c]);
+    });
+    allOk.hidden = !canAll;
     statusEl.classList.toggle('ready', !p.length && needCheck.length > 0);
     statusEl.textContent = p.length
-      ? `還有 ${p.length} 個字要${needZy() ? '填注音並' : ''}對照：${p.join('、')}`
+      ? `還有 ${p.length} 個字要${needZy() ? '填注音並' : ''}確認：${p.join('、')}。請到上方「對照國語小字典」，核對後在每個字按黃色的「正確」。`
       : (needCheck.length ? '字形都對照好了，可以列印。' : '');
   }
   checksEl.addEventListener('click', e => {
@@ -945,7 +984,18 @@ fieldset:disabled legend{opacity:.5}
     document.getElementById('vFit').setAttribute('aria-pressed', !wide);
     document.getElementById('vWide').setAttribute('aria-pressed', wide);
   };
-  document.getElementById('viewBtn').addEventListener('click', openViewer);
+  function guard(fn){
+    return () => {
+      const p = pending();
+      if (!p.length) return fn();
+      const card = [...checksEl.querySelectorAll('.ck')].find(el => el.dataset.c === p[0]);
+      if (card){
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+      }
+    };
+  }
+  document.getElementById('viewBtn').addEventListener('click', guard(openViewer));
   document.getElementById('vClose').addEventListener('click', closeViewer);
   document.getElementById('vPrev').addEventListener('click', () => { vIdx--; viewerShow(); });
   document.getElementById('vNext').addEventListener('click', () => { vIdx++; viewerShow(); });
@@ -1098,12 +1148,19 @@ fieldset:disabled legend{opacity:.5}
   pdfShare.addEventListener('click', async () => {
     try { await navigator.share({ files: [pdfFile], title: pdfFile.name }); } catch(e){}
   });
-  document.getElementById('pdfBtn').addEventListener('click', makePDF);
-  document.getElementById('mPdf').addEventListener('click', makePDF);
-  document.getElementById('mView').addEventListener('click', openViewer);
+  document.getElementById('pdfBtn').addEventListener('click', guard(makePDF));
+  document.getElementById('mPdf').addEventListener('click', guard(makePDF));
+  document.getElementById('mView').addEventListener('click', guard(openViewer));
+  document.getElementById('allOk').addEventListener('click', () => {
+    needCheck.forEach(c => confirmed.add(keyOf(c)));
+    saveConfirmed();
+    checksEl.querySelectorAll('.ck').forEach(refreshCard);
+    updateStatus(); schedule();
+  });
   document.getElementById('vPdfBtn').addEventListener('click', makePDF);
 
   document.getElementById('printBtn').addEventListener('click', () => {
+    if (pending().length) return guard(() => {})();
     try { window.print(); } catch(e) { alert('請按 Ctrl+P（Mac 按 ⌘+P）列印。'); }
   });
 
