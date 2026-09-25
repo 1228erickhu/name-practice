@@ -257,7 +257,7 @@ fieldset:disabled legend{opacity:.5}
     <div class="field">
       <label for="trace">每行描寫幾次</label>
       <div class="range"><input type="range" id="trace" min="0" max="10" value="4"><output id="traceOut">4</output></div>
-      <p class="hint">第一格是示範字，接著是描寫，剩下的空格自己寫。</p>
+      <p class="hint">每行先描寫幾格，剩下的空格自己寫。</p>
     </div>
 
     <fieldset class="field">
@@ -697,11 +697,9 @@ fieldset:disabled legend{opacity:.5}
     const makeRow = c => {
       let cells = [];
       if (c){
-        cells.push([c,'solid']);
-        for (let i = 0; i < k; i++) cells.push([c,'trace']);
+        for (let i = 0; i <= k; i++) cells.push([c,'trace']);
       } else {
-        const kk = Math.max(0, Math.min(k, Math.floor(cols/len) - 1));
-        chars.forEach(ch => cells.push([ch,'solid']));
+        const kk = Math.max(1, Math.min(k + 1, Math.floor(cols/len)));
         for (let i = 0; i < kk; i++) chars.forEach(ch => cells.push([ch,'trace']));
       }
       cells = cells.slice(0, cols);
