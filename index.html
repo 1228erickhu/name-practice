@@ -542,6 +542,37 @@ fieldset:disabled legend{opacity:.5}
     return pages.length ? pages : [''];
   }
 
+  /* 把教育部運筆軌跡的折線點，轉成平滑的曲線（不超出原本的點） */
+  function dedupe(pts, minGap){
+    const out = [];
+    pts.forEach(q => { if (!out.length || Math.hypot(q[0] - out[out.length-1][0], q[1] - out[out.length-1][1]) >= minGap) out.push(q); });
+    if (out.length === 1 && pts.length > 1) out.push(pts[pts.length - 1]);
+    return out;
+  }
+  function smoothTrack(pts){
+    const N = pts.length, len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const unit = (a, b) => { const L = len(a, b) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; };
+    let d = `M${n(pts[0][0])} ${n(pts[0][1])}`;
+    if (N === 2){
+      d += `L${n(pts[1][0])} ${n(pts[1][1])}`;
+      const u = unit(pts[0], pts[1]);
+      return { d, ex: u[0], ey: u[1] };
+    }
+    const tan = i => i === 0 ? unit(pts[0], pts[1]) : i === N - 1 ? unit(pts[N-2], pts[N-1]) : unit(pts[i-1], pts[i+1]);
+    let last = null;
+    for (let i = 0; i < N - 1; i++){
+      const p1 = pts[i], p2 = pts[i+1], L = len(p1, p2);
+      const t1 = tan(i), t2 = tan(i + 1);
+      const k1 = Math.min(L, i > 0 ? len(pts[i-1], p1) : L) * 0.38;
+      const k2 = Math.min(L, i + 2 < N ? len(p2, pts[i+2]) : L) * 0.38;
+      const c1 = [p1[0] + t1[0] * k1, p1[1] + t1[1] * k1], c2 = [p2[0] - t2[0] * k2, p2[1] - t2[1] * k2];
+      d += `C${n(c1[0])} ${n(c1[1])} ${n(c2[0])} ${n(c2[1])} ${n(p2[0])} ${n(p2[1])}`;
+      last = c2;
+    }
+    const u = len(last, pts[N-1]) > 0.05 ? unit(last, pts[N-1]) : unit(pts[N-2], pts[N-1]);
+    return { d, ex: u[0], ey: u[1] };
+  }
+
   function drawDiagram(d, x, y, D, lc){
     const F = fit(d, x, y, D, 0.8), k = F.k;
     const X = v => F.ox + v * k, Y = v => F.oy + v * k;
@@ -557,15 +588,13 @@ fieldset:disabled legend{opacity:.5}
       const col = PAL[i % PAL.length];
       const tr = (d.tracks && d.tracks[i]) || [];
       if (!tr.length) return;
-      const pts = tr.map(([a, b]) => [X(a), Y(b)]);
+      const pts = dedupe(tr.map(([a, b]) => [X(a), Y(b)]), D * 0.012);
       let ux = 0, uy = 0;
       if (pts.length >= 2){
-        g += `<path d="M${pts.map(q => n(q[0]) + ' ' + n(q[1])).join('L')}" fill="none" stroke="${col}" stroke-width="${n(lw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+        const sm = smoothTrack(pts);
+        g += `<path d="${sm.d}" fill="none" stroke="${col}" stroke-width="${n(lw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
         const e = pts[pts.length - 1];
-        let j = pts.length - 2;
-        while (j > 0 && Math.hypot(e[0] - pts[j][0], e[1] - pts[j][1]) < 0.5) j--;
-        let vx = e[0] - pts[j][0], vy = e[1] - pts[j][1], L = Math.hypot(vx, vy) || 1;
-        vx /= L; vy /= L;
+        let vx = sm.ex, vy = sm.ey;
         const h = r * 1.15, w = r * 0.85, px = -vy, py = vx;
         const tip = [e[0] + vx * h * 0.45, e[1] + vy * h * 0.45], bc = [e[0] - vx * h * 0.55, e[1] - vy * h * 0.55];
         g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${col}"/>`;
