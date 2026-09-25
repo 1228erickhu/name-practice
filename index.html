@@ -549,9 +549,20 @@ fieldset:disabled legend{opacity:.5}
     if (out.length === 1 && pts.length > 1) out.push(pts[pts.length - 1]);
     return out;
   }
-  function smoothTrack(pts){
-    const N = pts.length, len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  function smoothTrack(raw){
+    const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
     const unit = (a, b) => { const L = len(a, b) || 1; return [(b[0] - a[0]) / L, (b[1] - a[1]) / L]; };
+    /* 急轉彎（例如橫折）改成小圓角，避免曲線向外鼓出 */
+    const pts = [raw[0]];
+    for (let i = 1; i < raw.length - 1; i++){
+      const u1 = unit(raw[i-1], raw[i]), u2 = unit(raw[i], raw[i+1]);
+      if (u1[0]*u2[0] + u1[1]*u2[1] < 0.4){
+        const r1 = Math.min(1.6, len(raw[i-1], raw[i]) * 0.28), r2 = Math.min(1.6, len(raw[i], raw[i+1]) * 0.28);
+        pts.push([raw[i][0] - u1[0]*r1, raw[i][1] - u1[1]*r1], [raw[i][0] + u2[0]*r2, raw[i][1] + u2[1]*r2]);
+      } else pts.push(raw[i]);
+    }
+    pts.push(raw[raw.length - 1]);
+    const N = pts.length;
     let d = `M${n(pts[0][0])} ${n(pts[0][1])}`;
     if (N === 2){
       d += `L${n(pts[1][0])} ${n(pts[1][1])}`;
@@ -582,7 +593,7 @@ fieldset:disabled legend{opacity:.5}
     g += `<g transform="translate(${n(F.ox)} ${n(F.oy)}) scale(${k.toFixed(6)})">`;
     d.paths.forEach((p, i) => { g += `<path d="${p}" fill="${PAL[i % PAL.length]}" opacity="0.28"/>`; });
     g += '</g>';
-    const lw = Math.max(0.45, D * 0.014), r = Math.max(2, D * 0.055);
+    const lw = Math.max(0.45, D * 0.014), ar = Math.max(2, D * 0.055), r = ar / 2;
     const labels = [];
     d.paths.forEach((_, i) => {
       const col = PAL[i % PAL.length];
@@ -595,7 +606,7 @@ fieldset:disabled legend{opacity:.5}
         g += `<path d="${sm.d}" fill="none" stroke="${col}" stroke-width="${n(lw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
         const e = pts[pts.length - 1];
         let vx = sm.ex, vy = sm.ey;
-        const h = r * 1.15, w = r * 0.85, px = -vy, py = vx;
+        const h = ar * 1.15, w = ar * 0.85, px = -vy, py = vx;
         const tip = [e[0] + vx * h * 0.45, e[1] + vy * h * 0.45], bc = [e[0] - vx * h * 0.55, e[1] - vy * h * 0.55];
         g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${col}"/>`;
         let k2 = 1;
@@ -612,8 +623,8 @@ fieldset:disabled legend{opacity:.5}
         if (!labels.some(([lx, ly]) => Math.hypot(lx - cx, ly - cy) < r * 1.9)) break;
       }
       labels.push([cx, cy]);
-      g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.8)}"/>`+
-        `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*1.3)}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
+      g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.5)}"/>`+
+        `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*(i + 1 >= 10 ? 1.1 : 1.35))}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
     });
     return g;
   }
