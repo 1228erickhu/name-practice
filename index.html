@@ -211,6 +211,15 @@ fieldset:disabled legend{opacity:.5}
       <p class="hint" id="modeHint">中文字會放在格子裡；英文名字會改用四線格。</p>
     </div>
 
+    <fieldset class="field" id="typeSet">
+      <legend>練習紙類型（擇一）</legend>
+      <div class="seg">
+        <label><input type="radio" name="sheetType" value="practice" checked><span>寫字字帖</span></label>
+        <label><input type="radio" name="sheetType" value="diagram"><span>彩色筆順示範字</span></label>
+      </div>
+      <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。選「寫字字帖」才能設定排列方式、格線和描寫次數。</p>
+    </fieldset>
+
     <div class="field">
       <span style="font-weight:600;font-size:15px">字體：教育部標準楷書</span>
       <p class="hint" id="fontHint">標楷體字型載入中…</p>
@@ -250,14 +259,7 @@ fieldset:disabled legend{opacity:.5}
       <label class="check"><input type="checkbox" id="strokes" checked> 加入筆順示範</label>
       <p class="hint">每個字前面會一筆一筆畫出筆順，資料來自教育部常用國字標準字體筆順學習網（g0v 整理）。</p>
       <p class="hint" id="strokeMsg" role="status"></p>
-      <fieldset class="field" style="margin-top:8px">
-        <legend>練習紙類型（擇一）</legend>
-        <div class="seg">
-          <label><input type="radio" name="sheetType" value="practice" checked><span>寫字字帖</span></label>
-          <label><input type="radio" name="sheetType" value="diagram"><span>彩色筆順示範字</span></label>
-        </div>
-        <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。</p>
-      </fieldset>
+
       <label class="check" id="colorDiagramWrap" style="margin-top:6px"><input type="checkbox" id="colorDiagram"> 字帖加上彩色筆順示範字</label>
       <p class="hint">選「寫字字帖」時可以勾選：每個字的筆順小格子左邊，會加上一個彩色筆順示範字（數字和箭頭）。</p>
     </div>
@@ -1059,7 +1061,7 @@ fieldset:disabled legend{opacity:.5}
     const hasCJK = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/.test(raw);
     const latin = raw && !hasCJK && /[A-Za-z]/.test(raw);
     document.getElementById('gridSet').disabled = !!latin;
-    document.getElementById('layoutSet').disabled = !!latin;
+    document.getElementById('layoutSet').disabled = !!latin || state.onlyDiagram;
     document.getElementById('modeHint').textContent = latin
       ? '偵測到英文名字，使用四線格練習。'
       : '中文字會放在格子裡；英文名字會改用四線格。';
@@ -1067,7 +1069,7 @@ fieldset:disabled legend{opacity:.5}
     const cjkList = latin ? [] : [...new Set([...raw].filter(c => CJK.test(c)))];
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
-    if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
+    if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf' || state.onlyDiagram;
     strokeChars = ((state.strokes || state.onlyDiagram || state.colorDiagram) && state.content !== 'bpmf') ? cjkList : [];
     strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
     strokeStatus();
@@ -1122,8 +1124,17 @@ fieldset:disabled legend{opacity:.5}
   }));
   const cdg = document.getElementById('colorDiagram');
   function syncColorDiagram(){
-    cdg.disabled = state.onlyDiagram;
-    document.getElementById('colorDiagramWrap').style.opacity = state.onlyDiagram ? '.45' : '';
+    const off = state.onlyDiagram;
+    cdg.disabled = off;
+    document.getElementById('colorDiagramWrap').style.opacity = off ? '.45' : '';
+    /* 只有「寫字字帖」才能設定排列方式、格線、描寫次數等 */
+    document.getElementById('layoutSet').disabled = off;
+    document.getElementById('gridSet').disabled = off || state.content === 'bpmf';
+    const ts = document.querySelector('input[name="traceStyle"]'); if (ts) ts.closest('fieldset').disabled = off;
+    ['trace', 'pages', 'strokes'].forEach(id => {
+      const el = document.getElementById(id); el.disabled = off;
+      const f = el.closest('.field'); if (f) f.style.opacity = off ? '.45' : '';
+    });
   }
   cdg.addEventListener('change', () => { state.colorDiagram = cdg.checked; schedule(); });
   const hdr = document.getElementById('header');
