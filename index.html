@@ -258,6 +258,8 @@ fieldset:disabled legend{opacity:.5}
         </div>
         <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。</p>
       </fieldset>
+      <label class="check" id="colorDiagramWrap" style="margin-top:6px"><input type="checkbox" id="colorDiagram"> 字帖加上彩色筆順示範字</label>
+      <p class="hint">選「寫字字帖」時可以勾選：每個字的筆順小格子左邊，會加上一個彩色筆順示範字（數字和箭頭）。</p>
     </div>
 
     <div class="field">
@@ -350,7 +352,7 @@ fieldset:disabled legend{opacity:.5}
   const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false, colorDiagram:false };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -660,8 +662,11 @@ fieldset:disabled legend{opacity:.5}
     const d = strokeData[c];
     if (noBoxes)
       return `<text x="${n(x0)}" y="${n(y + 1)}" font-size="3.6" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，一格加一筆，照著箭頭的方向寫。</text>`;
-    let g = `<text x="${n(x0)}" y="${n(y + Math.ceil(d.paths.length / scols) * sb + 1)}" font-size="3.4" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，照著筆順一筆一筆寫。</text>`;
-    if (noBoxes) return g;
+    let g = '';
+    if (D){ g += drawDiagram(d, x0, y, D, lc); x0 += slw; }
+    const boxes = state.strokes;
+    g += `<text x="${n(x0)}" y="${n(y + (boxes ? Math.ceil(d.paths.length / scols) * sb : 0) + 1)}" font-size="3.4" font-family="${KAI}" fill="#555" dominant-baseline="hanging">「${esc(c)}」共 ${d.paths.length} 畫，${D ? '照著數字和箭頭的方向寫。' : '照著筆順一筆一筆寫。'}</text>`;
+    if (!boxes) return g;
     const dd = `stroke="${lc}" stroke-width="0.15" stroke-dasharray="0.8 0.8" opacity="0.5"`;
     d.paths.forEach((_, i) => {
       const bx = x0 + (i % scols) * sb, by = y + Math.floor(i / scols) * sb;
@@ -685,14 +690,16 @@ fieldset:disabled legend{opacity:.5}
     const gridW = lw + cols * unit, x0 = M + (CW - gridW) / 2;
     const Y0 = top(), AH = availH();
 
-    const sb = Math.min(13, Math.max(9, s * 0.55)), D = 0, slw = 0;
+    const withDiag = state.colorDiagram && mode !== 'bpmf';
+    const sb = Math.min(13, Math.max(9, s * 0.55)), D = withDiag ? Math.min(46, Math.max(32, s * 1.9)) : 0, slw = withDiag ? D + 4 : 0;
     const scols = Math.max(1, Math.floor((gridW - slw) / sb));
-    const useStrokes = state.strokes && mode !== 'bpmf';
+    const useStrokes = (state.strokes || withDiag) && mode !== 'bpmf';
     const strip = c => {
       const d = useStrokes && strokeData[c];
       if (!(d && d.paths)) return null;
       const noBoxes = isProg(c);
-      return { type:'strip', c, noBoxes, h: noBoxes ? 9 : 2 + Math.ceil(d.paths.length / scols) * sb + 6 + 3 };
+      const boxH = state.strokes ? Math.ceil(d.paths.length / scols) * sb + 6 : 6;
+      return { type:'strip', c, noBoxes, h: noBoxes ? 9 : 2 + Math.max(D, boxH) + (withDiag ? 4 : 3) };
     };
     function isProg(c){
       const d = state.progressive && state.strokes && mode !== 'bpmf' && state.layout === 'char' && strokeData[c];
@@ -1061,7 +1068,7 @@ fieldset:disabled legend{opacity:.5}
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
     if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf';
-    strokeChars = ((state.strokes || state.onlyDiagram) && state.content !== 'bpmf') ? cjkList : [];
+    strokeChars = ((state.strokes || state.onlyDiagram || state.colorDiagram) && state.content !== 'bpmf') ? cjkList : [];
     strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
     strokeStatus();
     cjkList.forEach(c => { if (!(c in dictData)) loadDict(c); });
@@ -1111,8 +1118,14 @@ fieldset:disabled legend{opacity:.5}
   const stk = document.getElementById('strokes');
   stk.addEventListener('change', () => { state.strokes = stk.checked; schedule(); });
   document.querySelectorAll('input[name="sheetType"]').forEach(el => el.addEventListener('change', () => {
-    if (el.checked){ state.onlyDiagram = el.value === 'diagram'; schedule(); }
+    if (el.checked){ state.onlyDiagram = el.value === 'diagram'; syncColorDiagram(); schedule(); }
   }));
+  const cdg = document.getElementById('colorDiagram');
+  function syncColorDiagram(){
+    cdg.disabled = state.onlyDiagram;
+    document.getElementById('colorDiagramWrap').style.opacity = state.onlyDiagram ? '.45' : '';
+  }
+  cdg.addEventListener('change', () => { state.colorDiagram = cdg.checked; schedule(); });
   const hdr = document.getElementById('header');
   hdr.addEventListener('change', () => { state.header = hdr.checked; schedule(); });
 
