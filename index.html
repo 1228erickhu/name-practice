@@ -216,8 +216,9 @@ fieldset:disabled legend{opacity:.5}
       <div class="seg">
         <label><input type="radio" name="sheetType" value="practice" checked><span>寫字字帖</span></label>
         <label><input type="radio" name="sheetType" value="diagram"><span>彩色筆順示範字</span></label>
+        <label><input type="radio" name="sheetType" value="outline"><span>筆順描寫字帖</span></label>
       </div>
-      <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。選「寫字字帖」才能設定排列方式、格線和描寫次數。</p>
+      <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。「筆順描寫字帖」是大格子的空心字，每一筆標上紅色數字和藍色虛線箭頭，讓小朋友沿著筆畫描寫。</p>
     </fieldset>
 
     <div class="field">
@@ -354,7 +355,7 @@ fieldset:disabled legend{opacity:.5}
   const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
-  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false, colorDiagram:false };
+  const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false, colorDiagram:false, outlineSheet:false };
   let metrics = { x:0.5, cap:0.7 };
   const ctx = document.createElement('canvas').getContext('2d');
 
@@ -547,6 +548,70 @@ fieldset:disabled legend{opacity:.5}
       }
     });
     return [body];
+  }
+
+  /* 筆順描寫字帖：空心字、紅色筆順數字、藍色虛線箭頭 */
+  function outlineGlyph(x, y, S, c){
+    const d = strokeData[c];
+    if (!(d && d.paths)){
+      return `<text x="${n(x + S/2)}" y="${n(y + S/2 + S*0.03)}" font-size="${n(S*0.8)}" font-family="${KAI}" fill="none" stroke="#333" stroke-width="0.3" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`;
+    }
+    const F = fit(d, x, y, S, 0.84), k = F.k;
+    let g = `<g transform="translate(${n(F.ox)} ${n(F.oy)}) scale(${k.toFixed(6)})">`;
+    d.paths.forEach(p => { g += `<path d="${p}" fill="none" stroke="#2B2B2B" stroke-width="${(0.3 / k).toFixed(2)}" stroke-linejoin="round"/>`; });
+    g += '</g>';
+    const blue = '#2F6FD6', red = '#D9412B', fs = Math.max(2.4, S * 0.062), labels = [];
+    d.paths.forEach((_, i) => {
+      const tr = (d.tracks && d.tracks[i]) || [];
+      if (!tr.length) return;
+      const pts = dedupe(tr.map(([a, b]) => [F.ox + a * k, F.oy + b * k]), 0.4);
+      let ux = 0, uy = 0;
+      if (pts.length >= 2){
+        const sm = smoothTrack(pts);
+        g += `<path d="${sm.d}" fill="none" stroke="${blue}" stroke-width="0.4" stroke-dasharray="0.45 0.85" stroke-linecap="round"/>`;
+        const e = pts[pts.length - 1], vx = sm.ex, vy = sm.ey, h = Math.max(1.4, S * 0.035), w = h * 0.8, px = -vy, py = vx;
+        const tip = [e[0] + vx * h * 0.35, e[1] + vy * h * 0.35], bc = [e[0] - vx * h * 0.65, e[1] - vy * h * 0.65];
+        g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${blue}"/>`;
+        let q = 1;
+        while (q < pts.length - 1 && Math.hypot(pts[q][0] - pts[0][0], pts[q][1] - pts[0][1]) < 0.5) q++;
+        ux = pts[q][0] - pts[0][0]; uy = pts[q][1] - pts[0][1];
+        const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
+      }
+      const base = pts.length >= 2 ? Math.atan2(-uy, -ux) : -Math.PI * 3/4, rr = fs * 0.75;
+      let cx, cy;
+      for (let t = 0; t < 12; t++){
+        const a = base + (t % 2 ? 1 : -1) * Math.ceil(t / 2) * (Math.PI / 5);
+        cx = Math.min(x + S - rr, Math.max(x + rr, pts[0][0] + Math.cos(a) * fs * 0.9));
+        cy = Math.min(y + S - rr, Math.max(y + rr, pts[0][1] + Math.sin(a) * fs * 0.9));
+        if (!labels.some(([lx, ly]) => Math.hypot(lx - cx, ly - cy) < fs * 1.1)) break;
+      }
+      labels.push([cx, cy]);
+      g += `<text x="${n(cx)}" y="${n(cy)}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+    });
+    return g;
+  }
+  function outlinePages(chars){
+    const lc = LINE[state.lineColor], len = chars.length;
+    const cols = 4, S = CW / cols, rpp = Math.max(1, Math.floor(availH() / S)), total = rpp * state.pages;
+    const rows = [];
+    for (let r = 0; r < total; r++){
+      if (state.layout === 'char'){
+        const c = chars[Math.min(len - 1, Math.floor(r * len / total))];
+        rows.push(Array(cols).fill(c));
+      } else rows.push(Array.from({ length: cols }, (_, i) => chars[i % len]));
+    }
+    const pages = [];
+    for (let p = 0; p < state.pages; p++){
+      let body = '';
+      rows.slice(p * rpp, (p + 1) * rpp).forEach((row, ri) => {
+        row.forEach((c, ci) => {
+          const x = M + ci * S, y = top() + ri * S;
+          body += cell(x, y, S, null, 'blank', lc) + outlineGlyph(x, y, S, c);
+        });
+      });
+      pages.push(body);
+    }
+    return pages;
   }
 
   /* 把教育部運筆軌跡的折線點，轉成平滑的曲線（不超出原本的點） */
@@ -1070,7 +1135,7 @@ fieldset:disabled legend{opacity:.5}
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
     if (sig !== render.sig){ needCheck = cjkList; render.sig = sig; renderChecks(); }
     if (!latin) document.getElementById('gridSet').disabled = state.content === 'bpmf' || state.onlyDiagram;
-    strokeChars = ((state.strokes || state.onlyDiagram || state.colorDiagram) && state.content !== 'bpmf') ? cjkList : [];
+    strokeChars = ((state.strokes || state.onlyDiagram || state.colorDiagram || state.outlineSheet) && state.content !== 'bpmf') ? cjkList : [];
     strokeChars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
     strokeStatus();
     cjkList.forEach(c => { if (!(c in dictData)) loadDict(c); });
@@ -1088,9 +1153,10 @@ fieldset:disabled legend{opacity:.5}
     } else if (latin){
       bodies = latinPages(raw.replace(/\s+/g,' '));
     } else {
-      bodies = state.onlyDiagram ? diagramPages([...raw].filter(c => c.trim())) : cjkPages([...raw].filter(c => c.trim()));
+      const cs = [...raw].filter(c => c.trim());
+      bodies = state.onlyDiagram ? diagramPages(cs) : state.outlineSheet ? outlinePages(cs) : cjkPages(cs);
     }
-    const title = raw ? `${raw} 的${!latin && state.onlyDiagram ? '筆順' : '寫字'}練習` : '';
+    const title = raw ? `${raw} 的${!latin && state.onlyDiagram ? '筆順' : !latin && state.outlineSheet ? '筆順描寫' : '寫字'}練習` : '';
     preview.innerHTML = bodies.map((b, i) =>
       `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
       `<rect width="${W}" height="${H}" fill="#fff"/>${raw && !waiting.length ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
@@ -1120,20 +1186,20 @@ fieldset:disabled legend{opacity:.5}
   const stk = document.getElementById('strokes');
   stk.addEventListener('change', () => { state.strokes = stk.checked; schedule(); });
   document.querySelectorAll('input[name="sheetType"]').forEach(el => el.addEventListener('change', () => {
-    if (el.checked){ state.onlyDiagram = el.value === 'diagram'; syncColorDiagram(); schedule(); }
+    if (el.checked){ state.onlyDiagram = el.value === 'diagram'; state.outlineSheet = el.value === 'outline'; syncColorDiagram(); schedule(); }
   }));
   const cdg = document.getElementById('colorDiagram');
   function syncColorDiagram(){
-    const off = state.onlyDiagram;
-    cdg.disabled = off;
-    document.getElementById('colorDiagramWrap').style.opacity = off ? '.45' : '';
-    /* 只有「寫字字帖」才能設定排列方式、格線、描寫次數等 */
+    const off = state.onlyDiagram, notPractice = state.onlyDiagram || state.outlineSheet;
+    cdg.disabled = notPractice;
+    document.getElementById('colorDiagramWrap').style.opacity = notPractice ? '.45' : '';
+    /* 「彩色筆順示範字」不用排列方式、格線、頁數；「筆順描寫字帖」可以設定排列方式、格線和頁數 */
     document.getElementById('layoutSet').disabled = off;
     document.getElementById('gridSet').disabled = off || state.content === 'bpmf';
-    const ts = document.querySelector('input[name="traceStyle"]'); if (ts) ts.closest('fieldset').disabled = off;
-    ['trace', 'pages', 'strokes'].forEach(id => {
-      const el = document.getElementById(id); el.disabled = off;
-      const f = el.closest('.field'); if (f) f.style.opacity = off ? '.45' : '';
+    const ts = document.querySelector('input[name="traceStyle"]'); if (ts) ts.closest('fieldset').disabled = notPractice;
+    [['trace', notPractice], ['pages', off], ['strokes', notPractice]].forEach(([id, dis]) => {
+      const el = document.getElementById(id); el.disabled = dis;
+      const f = el.closest('.field'); if (f) f.style.opacity = dis ? '.45' : '';
     });
   }
   cdg.addEventListener('change', () => { state.colorDiagram = cdg.checked; schedule(); });
@@ -1294,7 +1360,8 @@ fieldset:disabled legend{opacity:.5}
         if (f !== 'none'){ ctx.fillStyle = f || '#000'; ctx.fill(p2); }
         const st = A('stroke');
         if (st && st !== 'none'){
-          ctx.strokeStyle = st; ctx.lineWidth = +A('stroke-width') || 1; ctx.setLineDash([]);
+          ctx.strokeStyle = st; ctx.lineWidth = +A('stroke-width') || 1;
+          const pda = A('stroke-dasharray'); ctx.setLineDash(pda ? pda.split(/[\s,]+/).map(Number) : []);
           ctx.lineCap = A('stroke-linecap') || 'butt'; ctx.lineJoin = A('stroke-linejoin') || 'miter';
           ctx.stroke(p2);
         }
