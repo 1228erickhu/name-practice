@@ -613,6 +613,65 @@ fieldset:disabled legend{opacity:.5}
   }
 
   /* 筆順描寫字帖：空心字、紅色筆順數字、藍色虛線箭頭 */
+  /* 筆順數字的位置：放在「自己這一筆」起筆附近、筆畫外側的空白處，
+     不壓在其他筆畫上、不和別的數字重疊，也不跑出格子；遇到起筆和別的筆畫重疊（例如「日」的 2、3、4），
+     就沿著這一筆往前找到只屬於它的位置再標。結果依字與格子大小快取。 */
+  const labelCache = new Map();
+  function smartLabels(key, d, F, x, y, S, rad, guides){
+    const hit = labelCache.get(key);
+    if (hit) return hit.map(p => p && [x + p[0], y + p[1]]);
+    const polys = d.paths.map(pd => flattenPath(pd).map(P => P.map(([a, b]) => [F.ox + a * F.k, F.oy + b * F.k])));
+    const inAny = (px, py, skip) => polys.some((P, j) => j !== skip && pointIn(P, px, py));
+    const ring = [[0, 0]];
+    for (let a = 0; a < 8; a++) ring.push([Math.cos(a * Math.PI / 4) * rad, Math.sin(a * Math.PI / 4) * rad]);
+    const placed = [];
+    const ok = (cx, cy, i, strict) => {
+      if (cx - rad < x + 0.3 || cx + rad > x + S - 0.3 || cy - rad < y + 0.3 || cy + rad > y + S - 0.3) return false;
+      if (placed.some(p => p && Math.hypot(p[0] - cx, p[1] - cy) < rad * 2.1)) return false;
+      return !ring.some(([dx, dy]) => inAny(cx + dx, cy + dy, strict ? -1 : i));
+    };
+    const res = d.paths.map((_, i) => {
+      const G = guides[i];
+      if (!G || !G.length){ placed.push(null); return null; }
+      const own = polys[i];
+      const cum = [0];
+      for (let j = 1; j < G.length; j++) cum.push(cum[j-1] + Math.hypot(G[j][0] - G[j-1][0], G[j][1] - G[j-1][1]));
+      const total = cum[cum.length - 1] || 0;
+      const at = f => {
+        const L = f * total; let j = 1;
+        while (j < G.length - 1 && cum[j] < L) j++;
+        const a = G[Math.max(0, j - 1)], b = G[Math.min(G.length - 1, j)];
+        const t = cum[j] - cum[j-1] > 0 ? (L - cum[j-1]) / (cum[j] - cum[j-1]) : 0;
+        const ux = b[0] - a[0], uy = b[1] - a[1], U = Math.hypot(ux, uy) || 1;
+        return { p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], u: [ux / U, uy / U] };
+      };
+      const width = (p, vx, vy) => { let t = 0; for (let st = 0.08; st < 12; st += 0.08){ if (pointIn(own, p[0] + vx * st, p[1] + vy * st)) t = st; else break; } return t; };
+      const cands = [];
+      [0, 0.06, 0.12, 0.2, 0.3, 0.42, 0.55].forEach((f, fi) => {
+        const { p, u } = at(f);
+        if (f === 0){
+          const back = width(p, -u[0], -u[1]);
+          cands.push({ c: [p[0] - u[0] * (back + rad + 0.35), p[1] - u[1] * (back + rad + 0.35)], s: fi });
+        }
+        [[-u[1], u[0]], [u[1], -u[0]]].forEach(([vx, vy]) => {
+          const t = width(p, vx, vy);
+          const c = [p[0] + vx * (t + rad + 0.35), p[1] + vy * (t + rad + 0.35)];
+          cands.push({ c, s: fi + (c[1] - p[1] > 0 ? 0.3 : 0) + (c[0] - p[0] > 0 ? 0.15 : 0) });
+        });
+      });
+      cands.sort((a, b) => a.s - b.s);
+      let pick = cands.find(o => ok(o.c[0], o.c[1], i, true)) || cands.find(o => ok(o.c[0], o.c[1], i, false));
+      if (!pick){
+        const g0 = G[0];
+        pick = { c: [Math.min(x + S - rad, Math.max(x + rad, g0[0] - rad * 1.3)), Math.min(y + S - rad, Math.max(y + rad, g0[1] - rad * 1.3))] };
+      }
+      placed.push(pick.c);
+      return pick.c;
+    });
+    labelCache.set(key, res.map(p => p && [p[0] - x, p[1] - y]));
+    return res;
+  }
+
   function outlineGlyph(x, y, S, c){
     const d = strokeData[c];
     if (!(d && d.paths)){
@@ -622,7 +681,7 @@ fieldset:disabled legend{opacity:.5}
     let g = `<g transform="translate(${n(F.ox)} ${n(F.oy)}) scale(${k.toFixed(6)})">`;
     d.paths.forEach(p => { g += `<path d="${p}" fill="none" stroke="#2B2B2B" stroke-width="${(0.3 / k).toFixed(2)}" stroke-linejoin="round"/>`; });
     g += '</g>';
-    const blue = '#2F6FD6', red = '#D9412B', fs = Math.max(2.4, S * 0.062), labels = [];
+    const blue = '#2F6FD6', red = '#D9412B', fs = Math.max(2.4, S * 0.062), guides = [];
     d.paths.forEach((_, i) => {
       const tr = (d.tracks && d.tracks[i]) || [];
       if (!tr.length) return;
@@ -630,6 +689,7 @@ fieldset:disabled legend{opacity:.5}
       let ux = 0, uy = 0;
       if (pts.length >= 2){
         const sm = guideLine(pts, d.paths[i], F, 0.35);
+        guides[i] = flattenPath(sm.d)[0] || pts;
         g += clipOpen(d.paths[i], F) + `<path d="${sm.d}" fill="none" stroke="${blue}" stroke-width="0.4" stroke-dasharray="0.45 0.85" stroke-linecap="round"/>`;
         const e = sm.end, vx = sm.ex, vy = sm.ey;
         const w = Math.min(Math.max(1.4, S * 0.035) * 0.8, Math.max(0.7, sm.half * 1.9)), h = Math.min(Math.max(1.4, S * 0.035), w * 1.4), px = -vy, py = vx;
@@ -639,17 +699,11 @@ fieldset:disabled legend{opacity:.5}
         while (q < pts.length - 1 && Math.hypot(pts[q][0] - pts[0][0], pts[q][1] - pts[0][1]) < 0.5) q++;
         ux = pts[q][0] - pts[0][0]; uy = pts[q][1] - pts[0][1];
         const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
-      }
-      const base = pts.length >= 2 ? Math.atan2(-uy, -ux) : -Math.PI * 3/4, rr = fs * 0.75;
-      let cx, cy;
-      for (let t = 0; t < 12; t++){
-        const a = base + (t % 2 ? 1 : -1) * Math.ceil(t / 2) * (Math.PI / 5);
-        cx = Math.min(x + S - rr, Math.max(x + rr, pts[0][0] + Math.cos(a) * fs * 0.9));
-        cy = Math.min(y + S - rr, Math.max(y + rr, pts[0][1] + Math.sin(a) * fs * 0.9));
-        if (!labels.some(([lx, ly]) => Math.hypot(lx - cx, ly - cy) < fs * 1.1)) break;
-      }
-      labels.push([cx, cy]);
-      g += `<text x="${n(cx)}" y="${n(cy)}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+      } else guides[i] = pts;
+    });
+    const pos = smartLabels(`o|${c}|${S.toFixed(2)}`, d, F, x, y, S, fs * 0.62, guides);
+    pos.forEach((p, i) => {
+      if (p) g += `<text x="${n(p[0])}" y="${n(p[1])}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
     });
     return g;
   }
@@ -818,7 +872,7 @@ fieldset:disabled legend{opacity:.5}
     d.paths.forEach((p, i) => { g += `<path d="${p}" fill="${PAL[i % PAL.length]}" opacity="0.28"/>`; });
     g += '</g>';
     const lw = Math.max(0.45, D * 0.014), ar = Math.max(2, D * 0.055), r = Math.max(1.8, ar / 2);
-    const labels = [];
+    const guides = [];
     d.paths.forEach((_, i) => {
       const col = PAL[i % PAL.length];
       const tr = (d.tracks && d.tracks[i]) || [];
@@ -827,6 +881,7 @@ fieldset:disabled legend{opacity:.5}
       let ux = 0, uy = 0;
       if (pts.length >= 2){
         const sm = guideLine(pts, d.paths[i], F, lw * 0.6);
+        guides[i] = flattenPath(sm.d)[0] || pts;
         g += clipOpen(d.paths[i], F) + `<path d="${sm.d}" fill="none" stroke="${col}" stroke-width="${n(lw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
         const e = sm.end;
         let vx = sm.ex, vy = sm.ey;
@@ -837,16 +892,12 @@ fieldset:disabled legend{opacity:.5}
         while (k2 < pts.length - 1 && Math.hypot(pts[k2][0] - pts[0][0], pts[k2][1] - pts[0][1]) < 0.5) k2++;
         ux = pts[k2][0] - pts[0][0]; uy = pts[k2][1] - pts[0][1];
         const L0 = Math.hypot(ux, uy) || 1; ux /= L0; uy /= L0;
-      }
-      let ang = (pts.length >= 2) ? Math.atan2(-uy, -ux) : -Math.PI * 3/4;
-      let cx, cy;
-      for (let t = 0; t < 12; t++){
-        const a = ang + (t % 2 ? 1 : -1) * Math.ceil(t / 2) * (Math.PI / 5);
-        cx = Math.min(x + D - r - 0.3, Math.max(x + r + 0.3, pts[0][0] + Math.cos(a) * r * 1.5));
-        cy = Math.min(y + D - r - 0.3, Math.max(y + r + 0.3, pts[0][1] + Math.sin(a) * r * 1.5));
-        if (!labels.some(([lx, ly]) => Math.hypot(lx - cx, ly - cy) < r * 1.9)) break;
-      }
-      labels.push([cx, cy]);
+      } else guides[i] = pts;
+    });
+    const key = `d|${D.toFixed(2)}|${d.paths.length}|${d.paths[0].slice(0, 80)}`;
+    smartLabels(key, d, F, x, y, D, r + lw * 0.25, guides).forEach((p, i) => {
+      if (!p) return;
+      const col = PAL[i % PAL.length], cx = p[0], cy = p[1];
       g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.5)}"/>`+
         `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*(i + 1 >= 10 ? 1.1 : 1.35))}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
     });
