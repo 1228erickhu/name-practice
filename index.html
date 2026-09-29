@@ -218,7 +218,7 @@ fieldset:disabled legend{opacity:.5}
         <label><input type="radio" name="sheetType" value="diagram"><span>彩色筆順示範字</span></label>
         <label><input type="radio" name="sheetType" value="outline"><span>筆順描寫字帖</span></label>
       </div>
-      <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。「筆順描寫字帖」是每頁 6×6 共 36 格的空心字，每一筆標上紅色數字和藍色虛線箭頭，讓小朋友沿著筆畫描寫。</p>
+      <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。「筆順描寫字帖」是一個字一頁、每頁 4×5 共 20 格的空心字，每一筆標上紅色數字和藍色虛線箭頭，讓小朋友沿著筆畫描寫。</p>
     </fieldset>
 
     <div class="field">
@@ -653,28 +653,21 @@ fieldset:disabled legend{opacity:.5}
     });
     return g;
   }
+  /* 筆順描寫字帖：一個字一頁，每頁 4 × 5 共 20 格 */
   function outlinePages(chars){
-    const lc = LINE[state.lineColor], len = chars.length;
-    const cols = 6, S = CW / cols, rpp = Math.min(6, Math.max(1, Math.floor(availH() / S))), total = rpp * state.pages;
-    const rows = [];
-    for (let r = 0; r < total; r++){
-      if (state.layout === 'char'){
-        const c = chars[Math.min(len - 1, Math.floor(r * len / total))];
-        rows.push(Array(cols).fill(c));
-      } else rows.push(Array.from({ length: cols }, (_, i) => chars[i % len]));
-    }
-    const pages = [];
-    for (let p = 0; p < state.pages; p++){
+    const lc = LINE[state.lineColor], cols = 4, S = CW / cols;
+    const rpp = Math.max(1, Math.floor(availH() / S));
+    const uniq = [...new Set(chars)];
+    return uniq.map(c => {
       let body = '';
-      rows.slice(p * rpp, (p + 1) * rpp).forEach((row, ri) => {
-        row.forEach((c, ci) => {
+      for (let ri = 0; ri < rpp; ri++){
+        for (let ci = 0; ci < cols; ci++){
           const x = M + ci * S, y = top() + ri * S;
           body += cell(x, y, S, null, 'blank', lc) + outlineGlyph(x, y, S, c);
-        });
-      });
-      pages.push(body);
-    }
-    return pages;
+        }
+      }
+      return body;
+    });
   }
 
   /* 導引線沿著筆畫走：把偏出外框（或太貼邊）的點推回筆畫裡面，線條保持連續不斷開 */
@@ -1285,7 +1278,7 @@ fieldset:disabled legend{opacity:.5}
     const hasCJK = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/.test(raw);
     const latin = raw && !hasCJK && /[A-Za-z]/.test(raw);
     document.getElementById('gridSet').disabled = !!latin;
-    document.getElementById('layoutSet').disabled = !!latin || state.onlyDiagram;
+    document.getElementById('layoutSet').disabled = !!latin || state.onlyDiagram || state.outlineSheet;
     document.getElementById('modeHint').textContent = latin
       ? '偵測到英文名字，使用四線格練習。'
       : '中文字會放在格子裡；英文名字會改用四線格。';
@@ -1353,10 +1346,10 @@ fieldset:disabled legend{opacity:.5}
     cdg.disabled = notPractice;
     document.getElementById('colorDiagramWrap').style.opacity = notPractice ? '.45' : '';
     /* 「彩色筆順示範字」不用排列方式、格線、頁數；「筆順描寫字帖」可以設定排列方式、格線和頁數 */
-    document.getElementById('layoutSet').disabled = off;
+    document.getElementById('layoutSet').disabled = off || state.outlineSheet;
     document.getElementById('gridSet').disabled = off || state.content === 'bpmf';
     const ts = document.querySelector('input[name="traceStyle"]'); if (ts) ts.closest('fieldset').disabled = notPractice;
-    [['trace', notPractice], ['pages', off], ['strokes', notPractice]].forEach(([id, dis]) => {
+    [['trace', notPractice], ['pages', notPractice], ['strokes', notPractice]].forEach(([id, dis]) => {
       const el = document.getElementById(id); el.disabled = dis;
       const f = el.closest('.field'); if (f) f.style.opacity = dis ? '.45' : '';
     });
