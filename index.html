@@ -220,6 +220,7 @@ fieldset:disabled legend{opacity:.5}
         <label><input type="radio" name="sheetType" value="outline"><span>筆順描寫字帖</span></label>
       </div>
       <p class="hint">「彩色筆順示範字」只印大的彩色筆順字：數字標出第幾筆、箭頭標出寫的方向，名字排成同一行，沒有字帖格子。「筆順描寫字帖」是一個字一頁、每頁 4×5 共 20 格的空心字，每一筆標上紅色數字和藍色虛線箭頭，讓小朋友沿著筆畫描寫。</p>
+      <p class="hint" id="labelMsg" role="status" hidden></p>
     </fieldset>
 
     <div class="field">
@@ -320,7 +321,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v1　2026-09-30 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v2　2026-09-30 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -615,14 +616,19 @@ fieldset:disabled legend{opacity:.5}
   }
 
   /* 筆順描寫字帖：空心字、紅色筆順數字、藍色虛線箭頭 */
-  /* 筆順數字的位置：放在「自己這一筆」起筆附近、筆畫外側的空白處，
-     不壓在其他筆畫上、不和別的數字重疊，也不跑出格子；遇到起筆和別的筆畫重疊（例如「日」的 2、3、4），
-     就沿著這一筆往前找到只屬於它的位置再標。結果依字與格子大小快取。 */
+  /* 筆順數字的位置：每個候選位置都做「出圖前檢查」──
+     數字必須離自己這一筆最近、和別的筆畫保持明顯距離，不壓字、不重疊、不出格。
+     如果某個數字怎麼放都靠近別的筆畫，就加一條細指示線連到它自己那一筆，並記錄下來顯示在設定面板。 */
   const labelCache = new Map();
-  function smartLabels(key, d, F, x, y, S, rad, guides){
+  const labelReport = new Map();
+  function smartLabels(key, d, F, x, y, S, rad, guides, ch){
     const hit = labelCache.get(key);
-    if (hit) return hit.map(p => p && [x + p[0], y + p[1]]);
+    if (hit){
+      if (ch) labelReport.set(ch, hit.issues);
+      return hit.res.map(o => o && { c: [x + o.c[0], y + o.c[1]], a: [x + o.a[0], y + o.a[1]], lead: o.lead });
+    }
     const polys = d.paths.map(pd => flattenPath(pd).map(P => P.map(([a, b]) => [F.ox + a * F.k, F.oy + b * F.k])));
+    const distTo = (j, px, py) => pointIn(polys[j], px, py) ? 0 : nearestOnBoundary(polys[j], [px, py]).dist;
     const inAny = (px, py, skip) => polys.some((P, j) => j !== skip && pointIn(P, px, py));
     const ring = [[0, 0]];
     for (let a = 0; a < 8; a++) ring.push([Math.cos(a * Math.PI / 4) * rad, Math.sin(a * Math.PI / 4) * rad]);
@@ -632,6 +638,7 @@ fieldset:disabled legend{opacity:.5}
       if (placed.some(p => p && Math.hypot(p[0] - cx, p[1] - cy) < rad * 2.1)) return false;
       return !ring.some(([dx, dy]) => inAny(cx + dx, cy + dy, strict ? -1 : i));
     };
+    const issues = [];
     const res = d.paths.map((_, i) => {
       const G = guides[i];
       if (!G || !G.length){ placed.push(null); return null; }
@@ -649,29 +656,52 @@ fieldset:disabled legend{opacity:.5}
       };
       const width = (p, vx, vy) => { let t = 0; for (let st = 0.08; st < 12; st += 0.08){ if (pointIn(own, p[0] + vx * st, p[1] + vy * st)) t = st; else break; } return t; };
       const cands = [];
-      [0, 0.06, 0.12, 0.2, 0.3, 0.42, 0.55].forEach((f, fi) => {
+      [0, 0.05, 0.1, 0.16, 0.24, 0.33, 0.45, 0.6, 0.75].forEach((f, fi) => {
         const { p, u } = at(f);
-        if (f === 0){
-          const back = width(p, -u[0], -u[1]);
-          cands.push({ c: [p[0] - u[0] * (back + rad + 0.35), p[1] - u[1] * (back + rad + 0.35)], s: fi });
-        }
-        [[-u[1], u[0]], [u[1], -u[0]]].forEach(([vx, vy]) => {
-          const t = width(p, vx, vy);
-          const c = [p[0] + vx * (t + rad + 0.35), p[1] + vy * (t + rad + 0.35)];
-          cands.push({ c, s: fi + (c[1] - p[1] > 0 ? 0.3 : 0) + (c[0] - p[0] > 0 ? 0.15 : 0) });
+        [0.35, rad * 0.8 + 0.35].forEach((gap, gi) => {
+          if (f === 0){
+            const back = width(p, -u[0], -u[1]);
+            cands.push({ c: [p[0] - u[0] * (back + rad + gap), p[1] - u[1] * (back + rad + gap)], a: p, s: fi + gi * 0.5 });
+          }
+          [[-u[1], u[0]], [u[1], -u[0]]].forEach(([vx, vy]) => {
+            const t = width(p, vx, vy);
+            const c = [p[0] + vx * (t + rad + gap), p[1] + vy * (t + rad + gap)];
+            cands.push({ c, a: [p[0] + vx * t * 0.5, p[1] + vy * t * 0.5], s: fi + gi * 0.5 + (c[1] - p[1] > 0 ? 0.3 : 0) + (c[0] - p[0] > 0 ? 0.15 : 0) });
+          });
         });
       });
-      cands.sort((a, b) => a.s - b.s);
-      let pick = cands.find(o => ok(o.c[0], o.c[1], i, true)) || cands.find(o => ok(o.c[0], o.c[1], i, false));
+      /* 出圖前檢查：量數字到「自己這一筆」和「最近的別的筆畫」的距離 */
+      const judge = o => {
+        const mine = distTo(i, o.c[0], o.c[1]);
+        let other = Infinity;
+        for (let j = 0; j < polys.length; j++) if (j !== i) other = Math.min(other, distTo(j, o.c[0], o.c[1]));
+        o.margin = other - mine;
+        o.score = o.s * 0.55 + mine * 0.6 - Math.min(o.margin, rad * 2.5) * 1.4;
+        return o;
+      };
+      let pool = cands.filter(o => ok(o.c[0], o.c[1], i, true));
+      if (!pool.length) pool = cands.filter(o => ok(o.c[0], o.c[1], i, false));
+      let pick = pool.map(judge).sort((a, b) => a.score - b.score)[0];
       if (!pick){
         const g0 = G[0];
-        pick = { c: [Math.min(x + S - rad, Math.max(x + rad, g0[0] - rad * 1.3)), Math.min(y + S - rad, Math.max(y + rad, g0[1] - rad * 1.3))] };
+        pick = { c: [Math.min(x + S - rad, Math.max(x + rad, g0[0] - rad * 1.3)), Math.min(y + S - rad, Math.max(y + rad, g0[1] - rad * 1.3))], a: g0, margin: -1 };
       }
+      const lead = pick.margin < rad * 1.1;
+      if (lead) issues.push(i + 1);
       placed.push(pick.c);
-      return pick.c;
+      return { c: pick.c, a: pick.a, lead };
     });
-    labelCache.set(key, res.map(p => p && [p[0] - x, p[1] - y]));
+    labelCache.set(key, { issues, res: res.map(o => o && { c: [o.c[0] - x, o.c[1] - y], a: [o.a[0] - x, o.a[1] - y], lead: o.lead }) });
+    if (ch) labelReport.set(ch, issues);
     return res;
+  }
+  /* 指示線：從數字邊緣連到它自己那一筆 */
+  function leaderLine(o, rad, col, w){
+    const dx = o.a[0] - o.c[0], dy = o.a[1] - o.c[1], L = Math.hypot(dx, dy);
+    if (L < rad * 1.2) return '';
+    const sx = o.c[0] + dx / L * rad * 0.95, sy = o.c[1] + dy / L * rad * 0.95;
+    return `<line x1="${n(sx)}" y1="${n(sy)}" x2="${n(o.a[0])}" y2="${n(o.a[1])}" stroke="${col}" stroke-width="${n(w)}"/>` +
+      `<circle cx="${n(o.a[0])}" cy="${n(o.a[1])}" r="${n(w * 1.8)}" fill="${col}"/>`;
   }
 
   function outlineGlyph(x, y, S, c){
@@ -702,9 +732,11 @@ fieldset:disabled legend{opacity:.5}
         const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
       } else guides[i] = pts;
     });
-    const pos = smartLabels(`o|${c}|${S.toFixed(2)}`, d, F, x, y, S, fs * 0.62, guides);
-    pos.forEach((p, i) => {
-      if (p) g += `<text x="${n(p[0])}" y="${n(p[1])}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+    const pos = smartLabels(`o|${c}|${S.toFixed(2)}`, d, F, x, y, S, fs * 0.62, guides, c);
+    pos.forEach((o, i) => {
+      if (!o) return;
+      if (o.lead) g += leaderLine(o, fs * 0.62, red, 0.2);
+      g += `<text x="${n(o.c[0])}" y="${n(o.c[1])}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
     });
     return g;
   }
@@ -896,9 +928,10 @@ fieldset:disabled legend{opacity:.5}
       } else guides[i] = pts;
     });
     const key = `d|${D.toFixed(2)}|${d.paths.length}|${d.paths[0].slice(0, 80)}`;
-    smartLabels(key, d, F, x, y, D, r + lw * 0.25, guides).forEach((p, i) => {
-      if (!p) return;
-      const col = PAL[i % PAL.length], cx = p[0], cy = p[1];
+    smartLabels(key, d, F, x, y, D, r + lw * 0.25, guides).forEach((o, i) => {
+      if (!o) return;
+      const col = PAL[i % PAL.length], cx = o.c[0], cy = o.c[1];
+      if (o.lead) g += leaderLine(o, r, col, lw * 0.45);
       g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.5)}"/>`+
         `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*(i + 1 >= 10 ? 1.1 : 1.35))}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
     });
@@ -1367,6 +1400,14 @@ fieldset:disabled legend{opacity:.5}
       (unchecked ? `<text x="${W-M}" y="${H-5}" font-size="3.4" font-family="${KAI}" fill="#D65A4A" text-anchor="end">尚未完成國語小字典${needZy() ? '字形與注音' : '字形'}對照</text>` : '') + `</svg>`+
       (bodies.length > 1 ? `<div class="num">第 ${i+1} 頁，共 ${bodies.length} 頁</div>` : '') + `</div>`
     ).join('');
+    const lm = document.getElementById('labelMsg');
+    if (!latin && raw && !waiting.length && state.outlineSheet && cjkList.length && cjkList.every(c => strokeData[c] && strokeData[c].paths)){
+      const bad = cjkList.filter(c => (labelReport.get(c) || []).length);
+      lm.textContent = bad.length
+        ? '數字檢查：' + bad.map(c => `「${c}」第 ${labelReport.get(c).join('、')} 筆`).join('；') + ' 的數字附近有別的筆畫，已加上細指示線連到正確的筆畫。'
+        : '數字檢查：每個數字都已確認標在自己的筆畫旁邊，沒有和別的筆畫混在一起。';
+      lm.hidden = false;
+    } else lm.hidden = true;
     if (justDone) setTimeout(openViewer, 60);
     else if (!viewer.hidden) viewerShow();
   }
