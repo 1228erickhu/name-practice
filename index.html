@@ -321,7 +321,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v2　2026-09-30 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v3　2026-09-30 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -356,6 +356,7 @@ fieldset:disabled legend{opacity:.5}
   const TRACE = { gray:'#C6CBC8', red:'#F2ADA3', outline:'#7D8582' };
   const INK = '#1D1F1E';
   const KAI = "'EduKai','TW-Kai','BiauKai','DFKai-SB','標楷體','Iansui',serif";
+  let kaiState = 'loading';   /* edukai＝教育部標準楷書已載入；local＝用裝置內建標楷體；missing＝沒有標楷體 */
   const LAT = "'Andika','Comic Sans MS',sans-serif";
 
   const state = { name:'王小明', grid:'tian', layout:'char', trace:4, traceStyle:'gray', size:20, lineColor:'green', pages:1, header:true, font:'edukai', content:'charbpmf', strokes:true, progressive:false, onlyDiagram:false, colorDiagram:false, outlineSheet:false };
@@ -736,7 +737,7 @@ fieldset:disabled legend{opacity:.5}
     pos.forEach((o, i) => {
       if (!o) return;
       if (o.lead) g += leaderLine(o, fs * 0.62, red, 0.2);
-      g += `<text x="${n(o.c[0])}" y="${n(o.c[1])}" font-size="${n(fs)}" font-family="${LAT}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
+      g += `<text x="${n(o.c[0])}" y="${n(o.c[1])}" font-size="${n(fs)}" font-family="${KAI}" fill="${red}" text-anchor="middle" dominant-baseline="central">${i + 1}</text>`;
     });
     return g;
   }
@@ -933,7 +934,7 @@ fieldset:disabled legend{opacity:.5}
       const col = PAL[i % PAL.length], cx = o.c[0], cy = o.c[1];
       if (o.lead) g += leaderLine(o, r, col, lw * 0.45);
       g += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${col}" stroke-width="${n(lw*0.5)}"/>`+
-        `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*(i + 1 >= 10 ? 1.1 : 1.35))}" font-weight="700" font-family="${LAT}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
+        `<text x="${n(cx)}" y="${n(cy + r*0.05)}" font-size="${n(r*(i + 1 >= 10 ? 1.1 : 1.35))}" font-weight="700" font-family="${KAI}" fill="${col}" text-anchor="middle" dominant-baseline="central">${i+1}</text>`;
     });
     return g;
   }
@@ -958,7 +959,7 @@ fieldset:disabled legend{opacity:.5}
       g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${col}"/>`;
       g += `<circle cx="${n(pts[0][0])}" cy="${n(pts[0][1])}" r="${n(lw * 1.3)}" fill="${col}"/>`;
     }
-    g += `<text x="${n(x + 0.9)}" y="${n(y + 0.9)}" font-size="${n(Math.max(2.4, s*0.13))}" font-weight="700" font-family="${LAT}" fill="${PAL[j % PAL.length]}" dominant-baseline="hanging">${j + 1}</text>`;
+    g += `<text x="${n(x + 0.9)}" y="${n(y + 0.9)}" font-size="${n(Math.max(2.4, s*0.13))}" font-weight="700" font-family="${KAI}" fill="${PAL[j % PAL.length]}" dominant-baseline="hanging">${j + 1}</text>`;
     return g;
   }
 
@@ -1474,6 +1475,7 @@ fieldset:disabled legend{opacity:.5}
       msg = '這個視窗沒辦法下載教育部筆順資料，所以練習紙上沒有筆順示範（數字和箭頭）。請改用 GitHub Pages 的網址開啟：1228erickhu.github.io/name-practice';
     else if (st.includes('loading')) msg = '筆順資料載入中，稍等一下會自動加上筆順示範…';
     else if (st.includes('missing')) msg = '有些字查不到教育部筆順資料，這些字不會顯示筆順示範。';
+    if (kaiState === 'missing') msg = (msg ? msg + ' ' : '') + '注意：沒有載入標楷體字型檔（edukai.ttf），練習紙上的字暫時用替代字型顯示。請確認 edukai.ttf 和 index.html 放在 GitHub 的同一個資料夾。';
     el.textContent = msg; el.hidden = !msg;
   }
   async function viewerShow(){
@@ -1670,6 +1672,7 @@ fieldset:disabled legend{opacity:.5}
     const filename = `${name}-練習紙.pdf`;
     try {
       await loadJsPDF();
+      try { await document.fonts.load("40px 'EduKai'", '永'); } catch(e){}
       await document.fonts.ready;
       const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
       for (let i = 0; i < svgs.length; i++){
@@ -1731,9 +1734,11 @@ fieldset:disabled legend{opacity:.5}
   }
   const fontHint = document.getElementById('fontHint');
   document.fonts.load("40px 'EduKai'", '永胡').then(list => {
-    if (list && list.length){ fontHint.textContent = '字型：教育部標準楷書（中華民國教育部，CC BY-ND 3.0 TW）。'; imgCache.clear(); render(); return; }
+    if (list && list.length){ kaiState = 'edukai'; fontHint.textContent = '字型：教育部標準楷書（中華民國教育部，CC BY-ND 3.0 TW）。'; imgCache.clear(); render(); return; }
     throw 0;
   }).catch(() => {
+    kaiState = hasLocalKai() ? 'local' : 'missing';
+    if (!viewer.hidden) viewerShow();
     fontHint.textContent = hasLocalKai()
       ? '使用這台裝置內建的標楷體顯示。'
       : '找不到標楷體字型檔（edukai.ttf），暫時用「芫荽」顯示，字形同樣依照教育部標準。';
