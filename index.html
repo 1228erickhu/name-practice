@@ -180,15 +180,16 @@ fieldset:disabled legend{opacity:.5}
 
 @page{size:A4;margin:0}
 @media print{
-  :root{padding:0}
-  body{background:#fff}
-  .top,.panel,.sheet .num,.viewer,.mbar,.linebar,.ver{display:none!important}
+  /* 每張練習紙剛好一頁：高度比 A4 略小 1mm，避免 Safari 因為小數點誤差多印出一張空白頁 */
+  html,body{margin:0!important;padding:0!important;height:auto!important;background:#fff}
+  :root{padding:0!important}
+  .top,.panel,.sheet .num,.viewer,.mbar,.linebar,.ver,.linebar{display:none!important}
   body.has-mbar{padding-bottom:0}
-  .layout{display:block;padding:0;max-width:none}
-  .preview{display:block}
-  .sheet{max-width:none;width:210mm;break-after:page;page-break-after:always}
+  .layout{display:block;padding:0;margin:0;max-width:none;gap:0}
+  .preview{display:block;gap:0;padding:0;margin:0}
+  .sheet{max-width:none;width:210mm;height:296mm;margin:0;padding:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid;break-after:page;page-break-after:always}
   .sheet:last-child{break-after:auto;page-break-after:auto}
-  .sheet svg{width:210mm;height:297mm;box-shadow:none}
+  .sheet svg{display:block;width:210mm;height:296mm;box-shadow:none}
 }
 </style>
 </head>
@@ -321,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v3　2026-09-30 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v4　2026-10-01 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
