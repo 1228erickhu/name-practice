@@ -209,7 +209,7 @@ fieldset:disabled legend{opacity:.5}
   <aside class="panel" aria-label="練習紙設定">
     <div class="field">
       <label for="name">名字</label>
-      <input type="text" id="name" value="王小明" maxlength="12" autocomplete="off" spellcheck="false">
+      <input type="text" id="name" value="王小明" maxlength="40" autocomplete="off" spellcheck="false">
       <p class="hint" id="modeHint">中文字會放在格子裡；英文名字會改用四線格。</p>
     </div>
 
@@ -322,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v4　2026-10-01 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v5　2026-10-05 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -618,6 +618,108 @@ fieldset:disabled legend{opacity:.5}
   }
 
   /* 筆順描寫字帖：空心字、紅色筆順數字、藍色虛線箭頭 */
+  /* ---------- 數字練習：學校習字簿的圓體數字、起筆數字、方向箭頭、收筆圓點 ---------- */
+  /* 每個數字畫在 60 × 100 的格子裡；s = 筆畫路徑，t = 起筆方向 */
+  const DIGITS = {
+    '0': [{ s: 'M30 5C14 5 6 25 6 50C6 75 14 95 30 95C46 95 54 75 54 50C54 25 46 5 33 5', t: [-1, 0] }],
+    '1': [{ s: 'M30 5L30 95', t: [0, 1] }],
+    '2': [{ s: 'M8 26C8 12 18 5 30 5C43 5 52 14 52 27C52 44 32 64 8 95L55 95', t: [0, -1] }],
+    '3': [{ s: 'M9 16C15 8 22 5 31 5C44 5 52 13 52 25C52 37 42 46 28 47C45 48 55 58 55 71C55 86 44 95 30 95C20 95 11 91 6 84', t: [0.7, -0.7] }],
+    '4': [{ s: 'M37 5L5 68L57 68', t: [-0.45, 0.89] }, { s: 'M42 36L42 95', t: [0, 1] }],
+    '5': [{ s: 'M13 5L10 45C17 39 24 37 31 37C46 37 55 48 55 64C55 83 44 95 29 95C19 95 11 91 6 84', t: [-0.07, 1] }, { s: 'M13 5L52 5', t: [1, 0] }],
+    '6': [{ s: 'M48 9C42 6 36 5 31 5C15 5 6 27 6 58C6 82 16 95 30 95C45 95 54 84 54 70C54 56 44 46 30 46C18 46 9 54 6 64', t: [-0.95, -0.3] }],
+    '7': [{ s: 'M8 5L8 19', t: [0, 1] }, { s: 'M8 5L54 5L23 95', t: [1, 0] }],
+    '8': [{ s: 'M50 19C47 10 40 5 30 5C18 5 10 12 10 24C10 36 20 42 30 48C42 54 54 62 54 74C54 87 44 95 30 95C16 95 6 87 6 74C6 62 18 54 30 48C40 42 50 36 50 24L50 21', t: [-0.35, -0.94] }],
+    '9': [{ s: 'M52 23C50 12 41 5 30 5C16 5 7 14 7 27C7 40 16 49 29 49C42 49 52 40 52 27L50 95', t: [-0.18, -0.98] }]
+  };
+  const DW = 60, DH = 100, DGAP = 10;
+  function pathEnd(d){
+    const v = d.replace(/[A-Z]/g, ' ').trim().split(/[\s,]+/).map(Number);
+    return [v[v.length - 2], v[v.length - 1]];
+  }
+  function pathStart(d){
+    const v = d.slice(1).split(/[A-Z]/)[0].trim().split(/[\s,]+/).map(Number);
+    return [v[0], v[1]];
+  }
+  /* 把一個數字（例如 "27"）放進方框裡，回傳縮放與位移 */
+  function numFit(str, x, y, w, h, pad){
+    const n0 = str.length, nw = n0 * DW + (n0 - 1) * DGAP;
+    const k = Math.min((w * (1 - pad * 2)) / nw, (h * (1 - pad * 2)) / DH);
+    return { k, ox: x + (w - nw * k) / 2, oy: y + (h - DH * k) / 2 };
+  }
+  /* 示範字：空心粗體數字＋起筆數字＋方向箭頭＋收筆圓點 */
+  function numDemo(str, x, y, w, h){
+    const F = numFit(str, x, y, w, h, 0.1), k = F.k;
+    const ink = '#2F3A8F', red = '#D9412B';
+    let g = '', marks = '';
+    [...str].forEach((ch, di) => {
+      const strokes = DIGITS[ch]; if (!strokes) return;
+      const dx = F.ox + di * (DW + DGAP) * k, T = `translate(${n(dx)} ${n(F.oy)}) scale(${k.toFixed(5)})`;
+      strokes.forEach(st => {
+        g += `<g transform="${T}"><path d="${st.s}" fill="none" stroke="${ink}" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      });
+      strokes.forEach(st => {
+        g += `<g transform="${T}"><path d="${st.s}" fill="none" stroke="#fff" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      });
+      strokes.forEach((st, si) => {
+        const s0 = pathStart(st.s), e0 = pathEnd(st.s);
+        const S = [dx + s0[0] * k, F.oy + s0[1] * k], E = [dx + e0[0] * k, F.oy + e0[1] * k];
+        const r = Math.max(1.3, k * 6.5), [tx, ty] = st.t;
+        /* 收筆圓點 */
+        marks += `<circle cx="${n(E[0])}" cy="${n(E[1])}" r="${n(r * 0.55)}" fill="${ink}"/>`;
+        /* 方向箭頭：從起筆往前畫一小段 */
+        const a0 = [S[0] + tx * r * 0.2, S[1] + ty * r * 0.2], a1 = [S[0] + tx * r * 2.6, S[1] + ty * r * 2.6];
+        const px = -ty, py = tx, hw = r * 0.55, hl = r * 0.9;
+        marks += `<line x1="${n(a0[0])}" y1="${n(a0[1])}" x2="${n(a1[0] - tx * hl * 0.6)}" y2="${n(a1[1] - ty * hl * 0.6)}" stroke="${ink}" stroke-width="${n(r * 0.28)}" stroke-linecap="round"/>`+
+          `<path d="M${n(a1[0])} ${n(a1[1])}L${n(a1[0] - tx * hl + px * hw)} ${n(a1[1] - ty * hl + py * hw)}L${n(a1[0] - tx * hl - px * hw)} ${n(a1[1] - ty * hl - py * hw)}Z" fill="${ink}"/>`;
+        /* 起筆數字：放在起筆點「後方」，兩筆同起點時往旁邊錯開 */
+        let cx = S[0] - tx * r * 1.6, cy = S[1] - ty * r * 1.6;
+        if (si > 0){ cx += -ty * r * 2.3 * (si); cy += tx * r * 2.3 * (si); }
+        cx = Math.min(x + w - r - 0.3, Math.max(x + r + 0.3, cx));
+        cy = Math.min(y + h - r - 0.3, Math.max(y + r + 0.3, cy));
+        marks += `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#fff" stroke="${red}" stroke-width="${n(r * 0.16)}"/>`+
+          `<text x="${n(cx)}" y="${n(cy + r * 0.05)}" font-size="${n(r * 1.35)}" font-family="${KAI}" fill="${red}" text-anchor="middle" dominant-baseline="central">${si + 1}</text>`;
+      });
+    });
+    return g + marks;
+  }
+  /* 描寫用：虛線數字 */
+  function numTrace(str, x, y, w, h){
+    const F = numFit(str, x, y, w, h, 0.14), k = F.k;
+    let g = '';
+    [...str].forEach((ch, di) => {
+      const strokes = DIGITS[ch]; if (!strokes) return;
+      const dx = F.ox + di * (DW + DGAP) * k;
+      strokes.forEach(st => {
+        g += `<g transform="translate(${n(dx)} ${n(F.oy)}) scale(${k.toFixed(5)})"><path d="${st.s}" fill="none" stroke="#3A3F7A" stroke-width="${(0.42 / k).toFixed(2)}" stroke-dasharray="${(0.7 / k).toFixed(2)} ${(0.9 / k).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+      });
+    });
+    return g;
+  }
+  /* 一頁最多 3 個數字；每個數字一區：第 1 行示範＋描寫，下面 2 行空白格 */
+  function numberPages(nums){
+    const lc = LINE[state.lineColor], cols = 8, cw = CW / cols, gap = 5;
+    const ch = Math.min(28, (availH() - gap * 2) / 9);
+    const dd = `stroke="${lc}" stroke-width="0.18" stroke-dasharray="1 1" opacity="0.55"`;
+    const box = (x, y, w, h) => `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" fill="none" stroke="${lc}" stroke-width="0.35"/>` +
+      line(x + w / 2, y, x + w / 2, y + h, dd) + line(x, y + h / 2, x + w, y + h / 2, dd);
+    const pages = [];
+    for (let p = 0; p * 3 < nums.length; p++){
+      let body = '';
+      nums.slice(p * 3, p * 3 + 3).forEach((num, bi) => {
+        const y0 = top() + bi * (ch * 3 + gap);
+        /* 第 1 行：示範（佔 2 格）＋ 6 格虛線描寫 */
+        body += `<rect x="${n(M)}" y="${n(y0)}" width="${n(cw * 2)}" height="${n(ch)}" fill="none" stroke="${lc}" stroke-width="0.35"/>` +
+          line(M + cw, y0, M + cw, y0 + ch, dd) + line(M, y0 + ch / 2, M + cw * 2, y0 + ch / 2, dd) + numDemo(num, M, y0, cw * 2, ch);
+        for (let c = 2; c < cols; c++) body += box(M + c * cw, y0, cw, ch) + numTrace(num, M + c * cw, y0, cw, ch);
+        /* 第 2、3 行：空白格自己寫 */
+        for (let r = 1; r < 3; r++) for (let c = 0; c < cols; c++) body += box(M + c * cw, y0 + r * ch, cw, ch);
+      });
+      pages.push(body);
+    }
+    return pages.length ? pages : [''];
+  }
+
   /* 筆順數字的位置：每個候選位置都做「出圖前檢查」──
      數字必須離自己這一筆最近、和別的筆畫保持明顯距離，不壓字、不重疊、不出格。
      如果某個數字怎麼放都靠近別的筆畫，就加一條細指示線連到它自己那一筆，並記錄下來顯示在設定面板。 */
@@ -1363,12 +1465,16 @@ fieldset:disabled legend{opacity:.5}
   function render(){
     const raw = state.name.trim();
     const hasCJK = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/.test(raw);
-    const latin = raw && !hasCJK && /[A-Za-z]/.test(raw);
+    const isNum = !hasCJK && /\d/.test(raw) && /^[0-9\s,，、.。]+$/.test(raw);
+    const nums = isNum ? raw.split(/[\s,，、.。]+/).filter(Boolean).map(v => v.slice(0, 4)) : [];
+    const latin = raw && !hasCJK && !isNum && /[A-Za-z]/.test(raw);
     document.getElementById('gridSet').disabled = !!latin;
     document.getElementById('layoutSet').disabled = !!latin || state.onlyDiagram || state.outlineSheet;
-    document.getElementById('modeHint').textContent = latin
+    document.getElementById('modeHint').textContent = isNum
+      ? `偵測到數字，改成數字練習（共 ${nums.length} 個數字，一頁最多 3 個）。多個數字請用空格或逗號隔開，例如：27 28 29。`
+      : latin
       ? '偵測到英文名字，使用四線格練習。'
-      : '中文字會放在格子裡；英文名字會改用四線格。';
+      : '中文字會放在格子裡；英文名字會改用四線格；輸入數字會變成數字練習。';
 
     const cjkList = latin ? [] : [...new Set([...raw].filter(c => CJK.test(c)))];
     const sig = cjkList.join('') + '|' + state.font + '|' + state.content;
@@ -1389,13 +1495,15 @@ fieldset:disabled legend{opacity:.5}
         `<text x="${W/2}" y="${H/2 + 4}" font-size="5" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">還要確認：${esc(waiting.join('、'))}</text>`];
     } else if (!raw){
       bodies = [`<text x="${W/2}" y="${H/2}" font-size="9" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">在左邊輸入名字</text>`];
+    } else if (isNum){
+      bodies = numberPages(nums);
     } else if (latin){
       bodies = latinPages(raw.replace(/\s+/g,' '));
     } else {
       const cs = [...raw].filter(c => c.trim());
       bodies = state.onlyDiagram ? diagramPages(cs) : state.outlineSheet ? outlinePages(cs) : cjkPages(cs);
     }
-    const title = raw ? `${raw} 的${!latin && state.onlyDiagram ? '筆順' : !latin && state.outlineSheet ? '筆順描寫' : '寫字'}練習` : '';
+    const title = !raw ? '' : isNum ? '數字練習' : `${raw} 的${!latin && state.onlyDiagram ? '筆順' : !latin && state.outlineSheet ? '筆順描寫' : '寫字'}練習`;
     preview.innerHTML = bodies.map((b, i) =>
       `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
       `<rect width="${W}" height="${H}" fill="#fff"/>${raw && !waiting.length ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
