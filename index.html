@@ -322,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v6　2026-10-06 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v7　2026-10-06 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -683,34 +683,55 @@ fieldset:disabled legend{opacity:.5}
     return `國語裡沒有「${body}」這個音，請再確認拼法`;
   }
   function paintHollow(sw){ return `fill="none" stroke="#7D8582" stroke-width="${n(sw)}"`; }
-  /* 注音字帖：一個格子寫一個音節（直式），第 1 行示範＋淡色描寫＋空心描寫，後面留白 */
+  /* 注音字帖（照學校注音習作的格式）：正方形格子、直式由上往下寫、由右往左換行；
+     每格寫一個音節，右邊窄欄寫聲調，格內虛線把符號位置分好 */
+  function zySquare(x, y, s, zy, kind, lc){
+    const p = kind !== 'blank' && parseZy(zy);
+    const cnt = p ? p.sy.length : 2, tw = s * 0.28, sw = s - tw;
+    const dd = `stroke="${lc}" stroke-width="0.18" stroke-dasharray="1 1" opacity="0.6"`;
+    let g = `<rect x="${n(x)}" y="${n(y)}" width="${n(s)}" height="${n(s)}" fill="none" stroke="${lc}" stroke-width="0.35"/>`;
+    g += line(x + sw, y, x + sw, y + s, dd);
+    for (let i = 1; i < Math.max(2, cnt); i++) g += line(x, y + s * i / Math.max(2, cnt), x + sw, y + s * i / Math.max(2, cnt), dd);
+    if (!p) return g;
+    const slot = s / Math.max(2, cnt), fs = Math.min(slot * 0.82, sw * 0.86);
+    const pt = paint(kind, fs * 0.035);
+    const T = (tx, ty, ch, f) => `<text x="${n(tx)}" y="${n(ty)}" font-size="${n(f)}" font-family="${KAI}" text-anchor="middle" dominant-baseline="central" ${pt}>${ch}</text>`;
+    const y0 = y + (s - cnt * slot) / 2;
+    p.sy.forEach((c, i) => { g += T(x + sw / 2, y0 + (i + 0.5) * slot + slot * 0.03, c, fs); });
+    if (p.tone === '˙') g += T(x + sw / 2, y0 + slot * 0.12, '˙', fs * 0.8);
+    else if (p.tone) g += T(x + sw + tw / 2, y0 + (cnt - 0.5) * slot - slot * 0.18, p.tone, fs * 0.85);
+    return g;
+  }
   function zhuyinPages(tokens){
-    const lc = LINE[state.lineColor], cols = 8, cw = CW / cols, chh = 33;
-    const rpp = Math.max(1, Math.floor(availH() / chh));
-    /* 一頁放得下時，把整頁的行數平均分給每個注音；放不下就每個注音一行、自動分頁 */
-    const fit = tokens.length <= rpp, base = fit ? Math.floor(rpp / tokens.length) : 1, extra = fit ? rpp % tokens.length : 0;
-    const rows = [];
+    const lc = LINE[state.lineColor];
+    const s = Math.min(CW / 6, availH() / 8), cols = Math.max(1, Math.floor(CW / s)), rows = Math.max(1, Math.floor(availH() / s));
+    const fit = tokens.length <= cols, base = fit ? Math.floor(cols / tokens.length) : 1, extra = fit ? cols % tokens.length : 0;
+    /* 每一欄由上往下排；第一欄：示範→淡色描寫→空心描寫→空白，之後的欄：淡色→空心→空白 */
+    const columns = [];
     tokens.forEach((tok, ti) => {
-      const k = tok.syls.length, units = Math.max(1, Math.floor(cols / k)), perTok = base + (ti < extra ? 1 : 0);
-      for (let r = 0; r < perTok; r++){
+      const k = tok.syls.length, units = Math.max(1, Math.floor(rows / k)), per = base + (ti < extra ? 1 : 0);
+      for (let c = 0; c < per; c++){
         const cells = [];
         for (let u = 0; u < units; u++){
-          const kind = r === 0 ? (u === 0 ? 'solid' : u <= 2 ? 'trace' : u <= 4 ? 'hollow' : 'blank')
-                               : (u <= 1 ? 'hollow' : 'blank');
+          const kind = c === 0
+            ? (u === 0 ? 'solid' : u <= 3 ? 'trace' : u <= 5 ? 'hollow' : 'blank')
+            : (u <= 1 ? 'trace' : u <= 3 ? 'hollow' : 'blank');
           tok.syls.forEach(sy => cells.push([sy.text, kind]));
         }
-        while (cells.length < cols) cells.push([null, 'blank']);
-        rows.push(cells);
+        while (cells.length < rows) cells.push([null, 'blank']);
+        columns.push(cells.slice(0, rows));
       }
     });
+    const gridW = cols * s, xR = M + (CW + gridW) / 2 - s;   /* 最右邊那一欄的 x */
     const pages = [];
-    for (let p = 0; p * rpp < rows.length; p++){
+    for (let p = 0; p * cols < columns.length; p++){
       let body = '';
-      rows.slice(p * rpp, (p + 1) * rpp).forEach((cells, ri) => {
-        cells.forEach(([zy, kind], ci) => {
-          body += zyCell(M + ci * cw, top() + ri * chh, cw, chh, kind === 'blank' ? null : zy, kind, lc, true);
-        });
+      columns.slice(p * cols, (p + 1) * cols).forEach((cells, ci) => {
+        const x = xR - ci * s;
+        cells.forEach(([zy, kind], ri) => { body += zySquare(x, top() + ri * s, s, zy, kind, lc); });
       });
+      for (let ci = columns.slice(p * cols, (p + 1) * cols).length; ci < cols; ci++)
+        for (let ri = 0; ri < rows; ri++) body += zySquare(xR - ci * s, top() + ri * s, s, null, 'blank', lc);
       pages.push(body);
     }
     return pages.length ? pages : [''];
