@@ -322,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v5　2026-10-05 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v6　2026-10-06 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -427,6 +427,7 @@ fieldset:disabled legend{opacity:.5}
 
   function paint(kind, sw){
     if (kind === 'solid') return `fill="${INK}"`;
+    if (kind === 'hollow') return `fill="none" stroke="#7D8582" stroke-width="${n(sw)}"`;
     if (state.traceStyle === 'outline') return `fill="none" stroke="${TRACE.outline}" stroke-width="${n(sw)}"`;
     return `fill="${TRACE[state.traceStyle]}"`;
   }
@@ -618,6 +619,103 @@ fieldset:disabled legend{opacity:.5}
   }
 
   /* 筆順描寫字帖：空心字、紅色筆順數字、藍色虛線箭頭 */
+  /* ---------- 注音字帖＋拼音檢查 ---------- */
+  const ZY_INI = 'ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙ', ZY_MED = 'ㄧㄨㄩ', ZY_FIN = 'ㄚㄛㄜㄝㄞㄟㄠㄡㄢㄣㄤㄥㄦ';
+  const ZY_ALL_FIN = 'ㄚ ㄛ ㄜ ㄝ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄦ ㄧ ㄧㄚ ㄧㄛ ㄧㄝ ㄧㄞ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ ㄩ ㄩㄝ ㄩㄢ ㄩㄣ ㄩㄥ';
+  /* 每個聲母可以接的韻（依教育部國語注音拼法整理；「-」代表單獨成音，例如 ㄓ、ㄗ） */
+  const ZY_OK = {
+    '': ZY_ALL_FIN,
+    'ㄅ': 'ㄚ ㄛ ㄞ ㄟ ㄠ ㄢ ㄣ ㄤ ㄥ ㄧ ㄧㄝ ㄧㄠ ㄧㄢ ㄧㄣ ㄧㄥ ㄨ',
+    'ㄆ': 'ㄚ ㄛ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄧ ㄧㄝ ㄧㄠ ㄧㄢ ㄧㄣ ㄧㄥ ㄨ',
+    'ㄇ': 'ㄚ ㄛ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄧ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄥ ㄨ',
+    'ㄈ': 'ㄚ ㄛ ㄟ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ',
+    'ㄉ': 'ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄧ ㄧㄚ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ',
+    'ㄊ': 'ㄚ ㄜ ㄞ ㄠ ㄡ ㄢ ㄤ ㄥ ㄧ ㄧㄝ ㄧㄠ ㄧㄢ ㄧㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ',
+    'ㄋ': 'ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄧ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄨ ㄨㄛ ㄨㄢ ㄨㄥ ㄩ ㄩㄝ',
+    'ㄌ': 'ㄚ ㄛ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄤ ㄥ ㄧ ㄧㄚ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄨ ㄨㄛ ㄨㄢ ㄨㄣ ㄨㄥ ㄩ ㄩㄝ ㄩㄢ',
+    'ㄍ': 'ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ',
+    'ㄎ': 'ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ',
+    'ㄏ': 'ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ',
+    'ㄐ': 'ㄧ ㄧㄚ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄩ ㄩㄝ ㄩㄢ ㄩㄣ ㄩㄥ',
+    'ㄑ': 'ㄧ ㄧㄚ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄩ ㄩㄝ ㄩㄢ ㄩㄣ ㄩㄥ',
+    'ㄒ': 'ㄧ ㄧㄚ ㄧㄝ ㄧㄠ ㄧㄡ ㄧㄢ ㄧㄣ ㄧㄤ ㄧㄥ ㄩ ㄩㄝ ㄩㄢ ㄩㄣ ㄩㄥ',
+    'ㄓ': '- ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ',
+    'ㄔ': '- ㄚ ㄜ ㄞ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ ㄨㄥ',
+    'ㄕ': '- ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄚ ㄨㄛ ㄨㄞ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄤ',
+    'ㄖ': '- ㄜ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ',
+    'ㄗ': '- ㄚ ㄜ ㄞ ㄟ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ',
+    'ㄘ': '- ㄚ ㄜ ㄞ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ',
+    'ㄙ': '- ㄚ ㄜ ㄞ ㄠ ㄡ ㄢ ㄣ ㄤ ㄥ ㄨ ㄨㄛ ㄨㄟ ㄨㄢ ㄨㄣ ㄨㄥ'
+  };
+  const ZY_TONES = 'ˊˇˋˉ';
+  /* 把一串注音切成一個一個音節，例如「ㄨㄟˊㄐㄧㄣ」→ ㄨㄟˊ、ㄐㄧㄣ */
+  function splitZy(str){
+    const t = [...str.replace(/\s/g, '')], out = [];
+    let i = 0;
+    while (i < t.length){
+      let s = { neutral: false, ini: '', med: '', fin: '', tone: '' }, start = i;
+      if (t[i] === '˙'){ s.neutral = true; i++; }
+      if (i < t.length && ZY_INI.includes(t[i])) s.ini = t[i++];
+      if (i < t.length && ZY_MED.includes(t[i])) s.med = t[i++];
+      if (i < t.length && ZY_FIN.includes(t[i])) s.fin = t[i++];
+      if (i < t.length && ZY_TONES.includes(t[i])) s.tone = t[i++];
+      if (i === start){ out.push({ bad: t[i], text: t[i] }); i++; continue; }
+      s.text = (s.neutral ? '˙' : '') + s.ini + s.med + s.fin + (s.tone === 'ˉ' ? '' : s.tone);
+      out.push(s);
+    }
+    return out;
+  }
+  /* 檢查一個音節拼得對不對，回傳 null（正確）或說明文字 */
+  function checkZy(s){
+    if (s.bad) return `「${s.bad}」不是注音符號`;
+    const rhyme = s.med + s.fin, body = s.ini + rhyme;
+    const symbolOnly = [...body].length === 1;
+    if (symbolOnly && !s.tone && !s.neutral) return null;     /* 單一符號練習，例如 ㄅ、ㄨ */
+    const list = ZY_OK[s.ini].split(' ');
+    if (!rhyme){
+      if (list.includes('-')) return null;
+      return `「${s.ini}」不能單獨加聲調，要和韻母拼在一起（例如 ${s.ini}${ZY_OK[s.ini].split(' ')[0]}）`;
+    }
+    if (list.includes(rhyme)) return null;
+    if (!s.ini) return `「${rhyme}」不是國語裡有的韻母組合`;
+    if ('ㄐㄑㄒ'.includes(s.ini)) return `「${s.ini}」後面只能接 ㄧ 或 ㄩ 開頭的韻，「${body}」拼法不對`;
+    if (s.med && !list.some(f => f.startsWith(s.med))) return `「${s.ini}」不能和 ${s.med} 拼在一起，「${body}」拼法不對`;
+    return `國語裡沒有「${body}」這個音，請再確認拼法`;
+  }
+  function paintHollow(sw){ return `fill="none" stroke="#7D8582" stroke-width="${n(sw)}"`; }
+  /* 注音字帖：一個格子寫一個音節（直式），第 1 行示範＋淡色描寫＋空心描寫，後面留白 */
+  function zhuyinPages(tokens){
+    const lc = LINE[state.lineColor], cols = 8, cw = CW / cols, chh = 33;
+    const rpp = Math.max(1, Math.floor(availH() / chh));
+    /* 一頁放得下時，把整頁的行數平均分給每個注音；放不下就每個注音一行、自動分頁 */
+    const fit = tokens.length <= rpp, base = fit ? Math.floor(rpp / tokens.length) : 1, extra = fit ? rpp % tokens.length : 0;
+    const rows = [];
+    tokens.forEach((tok, ti) => {
+      const k = tok.syls.length, units = Math.max(1, Math.floor(cols / k)), perTok = base + (ti < extra ? 1 : 0);
+      for (let r = 0; r < perTok; r++){
+        const cells = [];
+        for (let u = 0; u < units; u++){
+          const kind = r === 0 ? (u === 0 ? 'solid' : u <= 2 ? 'trace' : u <= 4 ? 'hollow' : 'blank')
+                               : (u <= 1 ? 'hollow' : 'blank');
+          tok.syls.forEach(sy => cells.push([sy.text, kind]));
+        }
+        while (cells.length < cols) cells.push([null, 'blank']);
+        rows.push(cells);
+      }
+    });
+    const pages = [];
+    for (let p = 0; p * rpp < rows.length; p++){
+      let body = '';
+      rows.slice(p * rpp, (p + 1) * rpp).forEach((cells, ri) => {
+        cells.forEach(([zy, kind], ci) => {
+          body += zyCell(M + ci * cw, top() + ri * chh, cw, chh, kind === 'blank' ? null : zy, kind, lc, true);
+        });
+      });
+      pages.push(body);
+    }
+    return pages.length ? pages : [''];
+  }
+
   /* ---------- 數字練習：學校習字簿的圓體數字、起筆數字、方向箭頭、收筆圓點 ---------- */
   /* 每個數字畫在 60 × 100 的格子裡；s = 筆畫路徑，t = 起筆方向 */
   const DIGITS = {
@@ -1466,11 +1564,22 @@ fieldset:disabled legend{opacity:.5}
     const raw = state.name.trim();
     const hasCJK = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/.test(raw);
     const isNum = !hasCJK && /\d/.test(raw) && /^[0-9\s,，、.。]+$/.test(raw);
+    const isZy = !hasCJK && /[\u3105-\u3129]/.test(raw) && !/[A-Za-z0-9]/.test(raw);
+    const zyTokens = isZy ? raw.split(/[\s,，、]+/).filter(Boolean).map(t => ({ text: t, syls: splitZy(t) })) : [];
     const nums = isNum ? raw.split(/[\s,，、.。]+/).filter(Boolean).map(v => v.slice(0, 4)) : [];
-    const latin = raw && !hasCJK && !isNum && /[A-Za-z]/.test(raw);
+    const latin = raw && !hasCJK && !isNum && !isZy && /[A-Za-z]/.test(raw);
     document.getElementById('gridSet').disabled = !!latin;
     document.getElementById('layoutSet').disabled = !!latin || state.onlyDiagram || state.outlineSheet;
-    document.getElementById('modeHint').textContent = isNum
+    const hintEl = document.getElementById('modeHint');
+    hintEl.style.color = '';
+    if (isZy){
+      const probs = [];
+      zyTokens.forEach(t => t.syls.forEach(sy => { const m = checkZy(sy); if (m) probs.push(m); }));
+      hintEl.textContent = probs.length
+        ? '注音檢查：' + probs.join('；') + '。'
+        : `偵測到注音，改成注音字帖。注音檢查：${zyTokens.map(t => t.syls.map(x => x.text).join(' ')).join('、')}　拼法都正確 ✓`;
+      if (probs.length) hintEl.style.color = '#D65A4A';
+    } else hintEl.textContent = isNum
       ? `偵測到數字，改成數字練習（共 ${nums.length} 個數字，一頁最多 3 個）。多個數字請用空格或逗號隔開，例如：27 28 29。`
       : latin
       ? '偵測到英文名字，使用四線格練習。'
@@ -1497,13 +1606,15 @@ fieldset:disabled legend{opacity:.5}
       bodies = [`<text x="${W/2}" y="${H/2}" font-size="9" font-family="${KAI}" fill="#B5BBB8" text-anchor="middle">在左邊輸入名字</text>`];
     } else if (isNum){
       bodies = numberPages(nums);
+    } else if (isZy){
+      bodies = zhuyinPages(zyTokens);
     } else if (latin){
       bodies = latinPages(raw.replace(/\s+/g,' '));
     } else {
       const cs = [...raw].filter(c => c.trim());
       bodies = state.onlyDiagram ? diagramPages(cs) : state.outlineSheet ? outlinePages(cs) : cjkPages(cs);
     }
-    const title = !raw ? '' : isNum ? '數字練習' : `${raw} 的${!latin && state.onlyDiagram ? '筆順' : !latin && state.outlineSheet ? '筆順描寫' : '寫字'}練習`;
+    const title = !raw ? '' : isNum ? '數字練習' : isZy ? '注音練習' : `${raw} 的${!latin && state.onlyDiagram ? '筆順' : !latin && state.outlineSheet ? '筆順描寫' : '寫字'}練習`;
     preview.innerHTML = bodies.map((b, i) =>
       `<div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}mm" height="${H}mm" role="img" aria-label="練習紙第 ${i+1} 頁">`+
       `<rect width="${W}" height="${H}" fill="#fff"/>${raw && !waiting.length ? header(title, lc) : ''}${b}${footer(i, bodies.length)}`+
