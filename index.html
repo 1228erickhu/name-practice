@@ -322,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v10　2026-10-08 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v11　2026-10-08 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -740,6 +740,7 @@ fieldset:disabled legend{opacity:.5}
   function paintHollow(sw){ return `fill="none" stroke="#7D8582" stroke-width="${n(sw)}"`; }
   /* 注音字帖（照學校注音習作的格式）：正方形十字格、直式由上往下寫、由右往左換行；
      每格寫一個音節，聲調寫在最後一個符號的右邊 */
+  const zyWeight = c => c === 'ㄧ' ? 0.6 : 1;
   function zySquare(x, y, s, zy, kind, lc, fsAll){
     const p = kind !== 'blank' && parseZy(zy);
     const cnt = p ? p.sy.length : 2;
@@ -750,15 +751,18 @@ fieldset:disabled legend{opacity:.5}
     if (!p) return g;
     /* 同一張字帖的符號大小統一（以最多符號的音節為準），兩個符號和三個符號的注音看起來一樣大 */
     const neutral = p.tone === '˙';
-    const fs = fsAll || Math.min(s * 0.9 / Math.max(2, cnt) * 0.85, s * 0.42), slot = fs / (neutral && cnt >= 3 ? 0.92 : 0.85);
-    const pt = paint(kind, fs * 0.035);
+    /* 「ㄧ」是一條橫線，只佔一半高度，三個符號的注音才不會上下拉得太開 */
+    const wts = p.sy.map(zyWeight), units = wts.reduce((a, b) => a + b, 0);
+    const fs = fsAll || Math.min(s * 0.9 * 0.85 / Math.max(2, units), s * 0.32), slot = fs / (neutral && units > 2.6 ? 0.92 : 0.85);
+    const pt = paint(kind, fs * 0.022);
     const T = (tx, ty, ch, f) => `<text x="${n(tx)}" y="${n(ty)}" font-size="${n(f)}" font-family="${KAI}" text-anchor="middle" dominant-baseline="central" ${pt}>${ch}</text>`;
     /* 輕聲的點要寫在第一個符號上面，所以整組往下挪一點，點才不會跑出格子 */
-    const y0 = y + (s - cnt * slot) / 2 + (neutral ? fs * 0.18 : 0), cx = x + s / 2 - (p.tone && !neutral ? fs * 0.18 : 0);
-    p.sy.forEach((c, i) => { g += T(cx, y0 + (i + 0.5) * slot + slot * 0.03, c, fs); });
+    const y0 = y + (s - units * slot) / 2 + (neutral ? fs * 0.18 : 0), cx = x + s / 2 - (p.tone && !neutral ? fs * 0.18 : 0);
+    let acc = 0, lastC = 0;
+    p.sy.forEach((c, i) => { lastC = y0 + (acc + wts[i] / 2) * slot; g += T(cx, lastC + slot * 0.03, c, fs); acc += wts[i]; });
     /* 聲調寫在最後一個符號的右上方；輕聲寫在最上面 */
     if (neutral) g += T(cx, y0 + slot * 0.12, '˙', fs * 0.8);
-    else if (p.tone) g += T(cx + fs * 0.78, y0 + (cnt - 0.5) * slot - slot * 0.2, p.tone, fs * 0.8);
+    else if (p.tone) g += T(cx + fs * 0.78, lastC - slot * 0.2, p.tone, fs * 0.8);
     return g;
   }
   function zhuyinPages(tokens){
@@ -782,9 +786,9 @@ fieldset:disabled legend{opacity:.5}
       }
     });
     const gridW = cols * s, xR = M + (CW + gridW) / 2 - s;   /* 最右邊那一欄的 x */
-    const maxCnt = Math.max(2, ...tokens.flatMap(t => t.syls.map(sy => { const q = parseZy(sy.text); return q ? q.sy.length : 1; })));
-    /* 有三個符號的注音時用 0.27 格寬；全部都是兩個符號以內時也只放大到 0.32，不同字帖之間不會差太多 */
-    const fsAll = maxCnt >= 3 ? s * 0.27 : s * 0.32;
+    /* 整張字帖用同一個符號大小：以最高的那個注音（ㄧ 算半格高）為準，最大 0.32 格寬 */
+    const maxUnits = Math.max(2, ...tokens.flatMap(t => t.syls.map(sy => { const q = parseZy(sy.text); return q ? q.sy.map(zyWeight).reduce((a, b) => a + b, 0) : 1; })));
+    const fsAll = Math.min(s * 0.9 * 0.85 / maxUnits, s * 0.32);
     const pages = [];
     for (let p = 0; p * cols < columns.length; p++){
       let body = '';
