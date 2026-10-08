@@ -322,7 +322,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v8　2026-10-06 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v10　2026-10-08 更新</footer>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -553,9 +553,26 @@ fieldset:disabled legend{opacity:.5}
       return { paths, tracks, box, dim: Math.max(2150, Math.ceil(max)) };
     } catch(e){ return null; }
   }
-  async function loadStrokes(c){
-    strokeData[c] = 'loading'; strokeStatus();
-    const hex = c.codePointAt(0).toString(16);
+  /* 教育部筆順資料只收常用字；不在裡面的罕用字，用「部件」組合出筆順
+     例：莯 = 茉 的「艹」（前 4 筆）＋「沐」（縮放到「末」的位置） */
+  const COMPOSE = {
+    '莯': { note: '由「茉」的「艹」和「沐」組合', parts: [
+      { src: '茉', from: 0, to: 4 },
+      { src: '沐', fitSrc: '茉', fitFrom: 4 }
+    ] }
+  };
+  function strokesBox(d, from, to){
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    d.paths.slice(from, to).forEach(p => flattenPath(p).forEach(P => P.forEach(([a, b]) => {
+      x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, a); y1 = Math.max(y1, b);
+    })));
+    return { x0, y0, x1, y1 };
+  }
+  function mapPath(d, f){
+    return d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (m, a, b) => { const q = f(+a, +b); return `${+q[0].toFixed(1)} ${+q[1].toFixed(1)}`; });
+  }
+  async function fetchStrokes(ch){
+    const hex = ch.codePointAt(0).toString(16);
     let blocked = 0;
     for (const src of STROKE_SRC){
       try {
@@ -564,16 +581,50 @@ fieldset:disabled legend{opacity:.5}
         clearTimeout(t);
         if (!r.ok) continue;
         const d = parseStrokes(await r.json());
-        if (d){
-          strokeData[c] = d; strokeStatus(); schedule();
-          const card = [...checksEl.querySelectorAll('.ck')].find(el => el.dataset.c === c);
-          if (card) refreshCard(card);
-          return;
-        }
+        if (d) return d;
       } catch(e){ blocked++; }
     }
-    strokeData[c] = blocked === STROKE_SRC.length ? 'blocked' : 'missing';
+    return blocked === STROKE_SRC.length ? 'blocked' : 'missing';
+  }
+  async function composeStrokes(c){
+    const rule = COMPOSE[c]; if (!rule) return null;
+    const need = [...new Set(rule.parts.flatMap(p => [p.src, p.fitSrc].filter(Boolean)))];
+    const got = {};
+    for (const ch of need){
+      const d = (strokeData[ch] && strokeData[ch].paths) ? strokeData[ch] : await fetchStrokes(ch);
+      if (!d || !d.paths) return null;
+      got[ch] = d;
+    }
+    const paths = [], tracks = [];
+    rule.parts.forEach(p => {
+      const s = got[p.src];
+      let f = (a, b) => [a, b];
+      if (p.fitSrc){
+        const T = strokesBox(got[p.fitSrc], p.fitFrom, undefined), S = strokesBox(s, 0, undefined);
+        const kx = (T.x1 - T.x0) / ((S.x1 - S.x0) || 1), ky = (T.y1 - T.y0) / ((S.y1 - S.y0) || 1);
+        f = (a, b) => [T.x0 + (a - S.x0) * kx, T.y0 + (b - S.y0) * ky];
+      }
+      const from = p.from || 0, to = p.to != null ? p.to : s.paths.length;
+      for (let i = from; i < to; i++){
+        paths.push(mapPath(s.paths[i], f));
+        tracks.push((s.tracks[i] || []).map(([a, b]) => f(a, b)));
+      }
+    });
+    const B = strokesBox({ paths }, 0, undefined);
+    return { paths, tracks, box: { cx: (B.x0 + B.x1) / 2, cy: (B.y0 + B.y1) / 2, size: Math.max(B.x1 - B.x0, B.y1 - B.y0, 900) },
+             dim: Math.max(2150, Math.ceil(Math.max(B.x1, B.y1))), composed: rule.note };
+  }
+  async function loadStrokes(c){
+    strokeData[c] = 'loading'; strokeStatus();
+    let d = await fetchStrokes(c);
+    if (!(d && d.paths) && d !== 'blocked'){
+      const comp = await composeStrokes(c);
+      if (comp) d = comp;
+    }
+    strokeData[c] = d;
     strokeStatus(); schedule();
+    const card = [...checksEl.querySelectorAll('.ck')].find(el => el.dataset.c === c);
+    if (card) refreshCard(card);
   }
   let strokeChars = [];
   function strokeStatus(){
@@ -584,7 +635,9 @@ fieldset:disabled legend{opacity:.5}
     else if (st.includes('blocked')) el.textContent = '目前無法連線取得筆順資料。在 Claude 的預覽視窗裡會被安全設定擋住；放到 GitHub Pages 等一般網站上就能正常顯示。';
     else {
       const miss = strokeChars.filter(c => strokeData[c] === 'missing');
-      el.textContent = miss.length ? `「${miss.join('、')}」查不到筆順資料，這些字不會顯示筆順。` : '';
+      const comp = strokeChars.filter(c => strokeData[c] && strokeData[c].composed);
+      el.textContent = (miss.length ? `「${miss.join('、')}」不在教育部常用字筆順資料裡，只能顯示字形，沒有筆順。` : '') +
+        (comp.length ? comp.map(c => `「${c}」不在教育部常用字筆順資料裡，筆順是${strokeData[c].composed}而成，請對照字典確認。`).join('') : '');
     }
   }
 
@@ -606,12 +659,14 @@ fieldset:disabled legend{opacity:.5}
       const x = x0 + i * (D + gap), d = strokeData[c];
       if (d && d.paths){
         body += drawDiagram(d, x, y, D, lc);
-        body += `<text x="${n(x + D/2)}" y="${n(y + D + cap*1.4)}" font-size="${n(cap)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">「${esc(c)}」共 ${d.paths.length} 畫</text>`;
+        body += `<text x="${n(x + D/2)}" y="${n(y + D + cap*1.4)}" font-size="${n(cap)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">「${esc(c)}」共 ${d.paths.length} 畫${d.composed ? '（組合筆順）' : ''}</text>`;
         if (state.zhuyin[c]) body += `<text x="${n(x + D/2)}" y="${n(y + D + cap*2.9)}" font-size="${n(cap)}" font-family="${KAI}" fill="${INK}" text-anchor="middle" dominant-baseline="central">${esc(state.zhuyin[c])}</text>`;
       } else {
-        const msg = d === 'loading' || d === undefined ? '載入中…' : '查不到筆順資料';
+        const msg = d === 'loading' || d === undefined ? '載入中…' : '沒有筆順資料，只顯示字形';
+        const dd = `stroke="${lc}" stroke-width="0.18" stroke-dasharray="1 1" opacity="0.5"`;
         body += `<rect x="${n(x)}" y="${n(y)}" width="${n(D)}" height="${n(D)}" fill="none" stroke="${lc}" stroke-width="0.35"/>`+
-          `<text x="${n(x + D/2)}" y="${n(y + D/2)}" font-size="${n(D*0.5)}" font-family="${KAI}" fill="#E1E4E2" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`+
+          line(x + D/2, y, x + D/2, y + D, dd) + line(x, y + D/2, x + D, y + D/2, dd) +
+          `<text x="${n(x + D/2)}" y="${n(y + D/2 + D*0.03)}" font-size="${n(D*0.8)}" font-family="${KAI}" fill="${d === 'loading' || d === undefined ? '#E1E4E2' : INK}" text-anchor="middle" dominant-baseline="central">${esc(c)}</text>`+
           `<text x="${n(x + D/2)}" y="${n(y + D + cap*1.4)}" font-size="${n(cap)}" font-family="${KAI}" fill="#999" text-anchor="middle" dominant-baseline="central">${msg}</text>`;
       }
     });
@@ -685,7 +740,7 @@ fieldset:disabled legend{opacity:.5}
   function paintHollow(sw){ return `fill="none" stroke="#7D8582" stroke-width="${n(sw)}"`; }
   /* 注音字帖（照學校注音習作的格式）：正方形十字格、直式由上往下寫、由右往左換行；
      每格寫一個音節，聲調寫在最後一個符號的右邊 */
-  function zySquare(x, y, s, zy, kind, lc){
+  function zySquare(x, y, s, zy, kind, lc, fsAll){
     const p = kind !== 'blank' && parseZy(zy);
     const cnt = p ? p.sy.length : 2;
     const dd = `stroke="${lc}" stroke-width="0.18" stroke-dasharray="1 1" opacity="0.6"`;
@@ -693,13 +748,16 @@ fieldset:disabled legend{opacity:.5}
     let g = `<rect x="${n(x)}" y="${n(y)}" width="${n(s)}" height="${n(s)}" fill="none" stroke="${lc}" stroke-width="0.35"/>` +
       line(x + s / 2, y, x + s / 2, y + s, dd) + line(x, y + s / 2, x + s, y + s / 2, dd);
     if (!p) return g;
-    const slot = s * 0.9 / Math.max(2, cnt), fs = Math.min(slot * 0.85, s * 0.42);
+    /* 同一張字帖的符號大小統一（以最多符號的音節為準），兩個符號和三個符號的注音看起來一樣大 */
+    const neutral = p.tone === '˙';
+    const fs = fsAll || Math.min(s * 0.9 / Math.max(2, cnt) * 0.85, s * 0.42), slot = fs / (neutral && cnt >= 3 ? 0.92 : 0.85);
     const pt = paint(kind, fs * 0.035);
     const T = (tx, ty, ch, f) => `<text x="${n(tx)}" y="${n(ty)}" font-size="${n(f)}" font-family="${KAI}" text-anchor="middle" dominant-baseline="central" ${pt}>${ch}</text>`;
-    const y0 = y + (s - cnt * slot) / 2, cx = x + s / 2 - (p.tone && p.tone !== '˙' ? fs * 0.18 : 0);
+    /* 輕聲的點要寫在第一個符號上面，所以整組往下挪一點，點才不會跑出格子 */
+    const y0 = y + (s - cnt * slot) / 2 + (neutral ? fs * 0.18 : 0), cx = x + s / 2 - (p.tone && !neutral ? fs * 0.18 : 0);
     p.sy.forEach((c, i) => { g += T(cx, y0 + (i + 0.5) * slot + slot * 0.03, c, fs); });
     /* 聲調寫在最後一個符號的右上方；輕聲寫在最上面 */
-    if (p.tone === '˙') g += T(cx, y0 - slot * 0.05, '˙', fs * 0.8);
+    if (neutral) g += T(cx, y0 + slot * 0.12, '˙', fs * 0.8);
     else if (p.tone) g += T(cx + fs * 0.78, y0 + (cnt - 0.5) * slot - slot * 0.2, p.tone, fs * 0.8);
     return g;
   }
@@ -724,12 +782,15 @@ fieldset:disabled legend{opacity:.5}
       }
     });
     const gridW = cols * s, xR = M + (CW + gridW) / 2 - s;   /* 最右邊那一欄的 x */
+    const maxCnt = Math.max(2, ...tokens.flatMap(t => t.syls.map(sy => { const q = parseZy(sy.text); return q ? q.sy.length : 1; })));
+    /* 有三個符號的注音時用 0.27 格寬；全部都是兩個符號以內時也只放大到 0.32，不同字帖之間不會差太多 */
+    const fsAll = maxCnt >= 3 ? s * 0.27 : s * 0.32;
     const pages = [];
     for (let p = 0; p * cols < columns.length; p++){
       let body = '';
       columns.slice(p * cols, (p + 1) * cols).forEach((cells, ci) => {
         const x = xR - ci * s;
-        cells.forEach(([zy, kind], ri) => { body += zySquare(x, top() + ri * s, s, zy, kind, lc); });
+        cells.forEach(([zy, kind], ri) => { body += zySquare(x, top() + ri * s, s, zy, kind, lc, fsAll); });
       });
       for (let ci = columns.slice(p * cols, (p + 1) * cols).length; ci < cols; ci++)
         for (let ri = 0; ri < rows; ri++) body += zySquare(xR - ci * s, top() + ri * s, s, null, 'blank', lc);
