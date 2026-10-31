@@ -166,6 +166,27 @@ fieldset:disabled legend{opacity:.5}
   .mbar button.pri{background:var(--pencil);border-color:var(--pencil);color:var(--pencil-ink)}
   body.has-mbar{padding-bottom:80px}
 }
+.sp{position:fixed;inset:0;z-index:60;background:#101814;color:#E4EDE8;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.spbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#18231D}
+.sptabs{display:flex;gap:6px;flex-wrap:wrap}
+.sptab{appearance:none;font:28px var(--kai);width:48px;height:48px;border-radius:10px;border:2px solid #3A4D42;background:#fff;color:#1D1F1E;cursor:pointer}
+.sptab.on{border-color:var(--pencil);box-shadow:0 0 0 2px var(--pencil)}
+.sptab:focus-visible,.spx:focus-visible,.spctl button:focus-visible{outline:3px solid var(--pencil);outline-offset:2px}
+.spmode span{color:#E4EDE8;border-color:#3A4D42}
+.spmode input:checked+span{background:var(--pencil);border-color:var(--pencil);color:var(--pencil-ink)}
+.spx{margin-left:auto;appearance:none;font:600 15px var(--sans);padding:8px 14px;border-radius:8px;border:1px solid #3A4D42;background:transparent;color:#E4EDE8;cursor:pointer}
+.spmain{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 16px 20px}
+.spinfo{margin:0;font-size:16px;text-align:center;min-height:1.6em}
+#spSvg{width:min(92vw,calc(100dvh - 300px),560px);height:auto;aspect-ratio:1;touch-action:none;background:#fff;border-radius:6px;user-select:none;-webkit-user-select:none}
+.spmsg{min-height:1.8em;font-size:17px;font-weight:700;text-align:center;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.spmsg.good{color:#7FD6A3}.spmsg.bad{color:#FF9A8B}.spmsg.done{color:#FFE08A}
+.spmsg .stars{font-size:28px;letter-spacing:2px}
+.spmsg button,.spctl button{appearance:none;font:700 16px var(--sans);padding:10px 16px;border-radius:10px;border:2px solid #3E9A6A;background:transparent;color:#E4EDE8;cursor:pointer}
+.spctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+.spctl[hidden]{display:none}
+.spctl button.pri,.spmsg button{background:var(--pencil);border-color:var(--pencil);color:var(--pencil-ink)}
+.spchk{display:flex;align-items:center;gap:6px;font-size:15px}
+.spchk input{width:20px;height:20px;accent-color:var(--pencil)}
 .print{appearance:none;border:0;border-radius:10px;background:var(--pencil);color:var(--pencil-ink);font:700 18px var(--sans);padding:14px;cursor:pointer;box-shadow:0 3px 0 #C79E1E}
 .print:hover{filter:brightness(1.04)}
 .print:active{transform:translateY(2px);box-shadow:0 1px 0 #C79E1E}
@@ -183,7 +204,7 @@ fieldset:disabled legend{opacity:.5}
   /* 每張練習紙剛好一頁：高度比 A4 略小 1mm，避免 Safari 因為小數點誤差多印出一張空白頁 */
   html,body{margin:0!important;padding:0!important;height:auto!important;background:#fff}
   :root{padding:0!important}
-  .top,.panel,.sheet .num,.viewer,.mbar,.linebar,.ver,.linebar{display:none!important}
+  .top,.panel,.sheet .num,.viewer,.mbar,.linebar,.ver,.sp{display:none!important}
   body.has-mbar{padding-bottom:0}
   .layout{display:block;padding:0;margin:0;max-width:none;gap:0}
   .preview{display:block;gap:0;padding:0;margin:0}
@@ -313,6 +334,7 @@ fieldset:disabled legend{opacity:.5}
     <p class="status" id="status" role="status"></p>
     <button class="view" id="viewBtn" type="button">預覽練習紙</button>
     <button class="view" id="pdfBtn" type="button">製作 PDF（手機也能看、能印）</button>
+    <button class="view sp-open" id="spBtn" type="button">✍️ 互動筆順練習（看動畫、自己寫）</button>
     <button class="print" id="printBtn" type="button">列印練習紙</button>
     <ul class="tips">
       <li>紙張選 A4，縮放選「100%」或「實際大小」，邊界選「無」。</li>
@@ -322,7 +344,33 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v11　2026-10-08 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v12　2026-10-31 更新</footer>
+<div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="互動筆順練習">
+  <div class="spbar">
+    <div class="sptabs" id="spTabs"></div>
+    <div class="seg spmode">
+      <label><input type="radio" name="spMode" value="learn" checked><span>學習（看動畫）</span></label>
+      <label><input type="radio" name="spMode" value="practice"><span>練習（自己寫）</span></label>
+    </div>
+    <button type="button" id="spClose" class="spx" aria-label="關閉筆順練習">關閉</button>
+  </div>
+  <div class="spmain">
+    <p class="spinfo" id="spInfo" role="status"></p>
+    <svg id="spSvg" viewBox="0 0 100 100" aria-label="筆順練習格"></svg>
+    <div class="spmsg" id="spMsg" role="status" aria-live="polite"></div>
+    <div class="spctl" id="spLearnCtl">
+      <button type="button" id="spPrev">◀ 上一筆</button>
+      <button type="button" id="spPlay" class="pri">▶ 播放</button>
+      <button type="button" id="spNext">下一筆 ▶</button>
+      <button type="button" id="spReplay">↻ 重播</button>
+    </div>
+    <div class="spctl" id="spPracCtl" hidden>
+      <label class="spchk"><input type="checkbox" id="spGuide" checked> 顯示淡色底字</label>
+      <button type="button" id="spHintBtn">💡 提示</button>
+      <button type="button" id="spRestart">↻ 重寫</button>
+    </div>
+  </div>
+</div>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="練習紙預覽">
   <div class="vbar">
     <button type="button" id="vPrev" aria-label="上一頁">‹</button>
@@ -347,6 +395,7 @@ fieldset:disabled legend{opacity:.5}
 <div class="mbar" id="mbar" hidden>
   <button type="button" id="mView">預覽練習紙</button>
   <button type="button" class="pri" id="mPdf">製作 PDF</button>
+  <button type="button" id="mPractice">筆順練習</button>
 </div>
 
 
@@ -2024,6 +2073,255 @@ fieldset:disabled legend{opacity:.5}
     updateStatus(); schedule();
   });
   document.getElementById('vPdfBtn').addEventListener('click', makePDF);
+
+  /* ---------- 互動筆順練習：學習模式（逐筆動畫）＋練習模式（用手指／滑鼠寫，網站判斷對錯） ---------- */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const sp = document.getElementById('sp'), spSvg = document.getElementById('spSvg');
+  const spTabs = document.getElementById('spTabs'), spInfo = document.getElementById('spInfo'), spMsg = document.getElementById('spMsg');
+  const spLearnCtl = document.getElementById('spLearnCtl'), spPracCtl = document.getElementById('spPracCtl');
+  const spS = { chars: [], ci: 0, mode: 'learn', idx: 0, playing: false, guide: true, miss: 0, missHere: 0, total: 0, token: 0, drawing: null, done: false };
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  let spLayer = {}, spF = null, spD = null;
+
+  function spChars(){ return [...new Set([...state.name.trim()].filter(c => CJK.test(c)))]; }
+  function openPractice(){
+    spS.chars = spChars();
+    if (!spS.chars.length){ spS.chars = []; }
+    spS.chars.forEach(c => { if (!(c in strokeData)) loadStrokes(c); });
+    spS.ci = Math.min(spS.ci, Math.max(0, spS.chars.length - 1));
+    sp.hidden = false; document.body.style.overflow = 'hidden';
+    spTabsRender(); spSetup();
+    document.getElementById('spClose').focus();
+  }
+  function closePractice(){ spS.token++; spS.playing = false; sp.hidden = true; document.body.style.overflow = ''; }
+  function spTabsRender(){
+    spTabs.innerHTML = spS.chars.map((c, i) => `<button type="button" class="sptab${i === spS.ci ? ' on' : ''}" data-i="${i}" aria-pressed="${i === spS.ci}">${esc(c)}</button>`).join('');
+  }
+  spTabs.addEventListener('click', e => { const b = e.target.closest('.sptab'); if (!b) return; spS.ci = +b.dataset.i; spTabsRender(); spSetup(); });
+  document.querySelectorAll('input[name="spMode"]').forEach(r => r.addEventListener('change', () => { if (r.checked){ spS.mode = r.value; spSetup(); } }));
+
+  /* 畫面：田字格、淡色底字、已完成的筆畫、動畫層、提示層、手寫層 */
+  function spSetup(){
+    spS.token++; spS.playing = false; spS.idx = 0; spS.miss = 0; spS.missHere = 0; spS.done = false;
+    spLearnCtl.hidden = spS.mode !== 'learn'; spPracCtl.hidden = spS.mode !== 'practice';
+    document.getElementById('spPlay').textContent = '▶ 播放';
+    spSvg.innerHTML = '';
+    el('rect', { x: 1, y: 1, width: 98, height: 98, fill: '#fff', stroke: '#3E9A6A', 'stroke-width': 0.6 }, spSvg);
+    const dash = { stroke: '#3E9A6A', 'stroke-width': 0.35, 'stroke-dasharray': '1.6 1.4', opacity: 0.55 };
+    el('line', Object.assign({ x1: 50, y1: 1, x2: 50, y2: 99 }, dash), spSvg);
+    el('line', Object.assign({ x1: 1, y1: 50, x2: 99, y2: 50 }, dash), spSvg);
+    const c = spS.chars[spS.ci];
+    spD = c && strokeData[c];
+    spMsg.textContent = ''; spMsg.className = 'spmsg';
+    if (!c){ spInfo.textContent = '請先在「名字」欄輸入中文字。'; return; }
+    if (!spD || !spD.paths){
+      el('text', { x: 50, y: 53, 'font-size': 70, 'font-family': KAI, fill: '#D5DAD7', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, spSvg).textContent = c;
+      spInfo.textContent = spD === 'loading' || spD === undefined ? '筆順資料載入中…'
+        : spD === 'blocked' ? '這個視窗下載不到教育部筆順資料。請改用 GitHub Pages 的網址開啟：1228erickhu.github.io/name-practice'
+        : `「${c}」沒有教育部筆順資料，沒辦法練習筆順。`;
+      if (spD === 'loading' || spD === undefined) setTimeout(() => { if (!sp.hidden && spS.chars[spS.ci] === c && strokeData[c] !== 'loading') spSetup(); else if (!sp.hidden && spS.chars[spS.ci] === c) setTimeout(spSetup, 600); }, 600);
+      return;
+    }
+    spF = fit(spD, 0, 0, 100, 0.82);
+    const g = el('g', { transform: `translate(${n(spF.ox)} ${n(spF.oy)}) scale(${spF.k.toFixed(6)})` }, spSvg);
+    spLayer = {
+      guide: el('g', {}, g), done: el('g', {}, g), hint: el('g', {}, g), anim: el('g', {}, g),
+      ink: el('g', {}, spSvg)
+    };
+    spD.paths.forEach(p => el('path', { d: p, fill: '#E3E7E5' }, spLayer.guide));
+    spLayer.guide.style.display = (spS.mode === 'learn' || spS.guide) ? '' : 'none';
+    spS.total = spD.paths.length;
+    spInfoUpdate();
+    if (spS.mode === 'learn') setTimeout(() => spPlay(), 350);
+  }
+  function spInfoUpdate(){
+    const c = spS.chars[spS.ci];
+    if (spS.mode === 'learn') spInfo.textContent = `「${c}」共 ${spS.total} 畫　　已寫到第 ${spS.idx} 筆`;
+    else spInfo.textContent = spS.done ? `「${c}」完成！` : `「${c}」請寫第 ${spS.idx + 1} 筆（共 ${spS.total} 畫）　錯誤 ${spS.miss} 次`;
+  }
+
+  /* 一筆的動畫：用運筆軌跡當遮罩，慢慢把筆畫「寫」出來 */
+  let maskSeq = 0;
+  function spAnimateStroke(i, color, layer, ms){
+    return new Promise(res => {
+      const p = spD.paths[i], tr = (spD.tracks && spD.tracks[i]) || [];
+      if (tr.length < 2){ el('path', { d: p, fill: color }, layer); return res(); }
+      const id = 'spm' + (++maskSeq);
+      const mask = el('mask', { id, maskUnits: 'userSpaceOnUse' }, layer);
+      const tp = el('path', { d: 'M' + tr.map(q => q[0] + ' ' + q[1]).join('L'), fill: 'none', stroke: '#fff',
+        'stroke-width': Math.max(220, spD.box.size * 0.13), 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mask);
+      const L = tp.getTotalLength ? tp.getTotalLength() : 1000;
+      tp.setAttribute('stroke-dasharray', `${L} ${L}`);
+      tp.setAttribute('stroke-dashoffset', L);
+      const fill = el('path', { d: p, fill: color, mask: `url(#${id})` }, layer);
+      const dur = ms || Math.min(1400, 380 + L * 0.45);
+      const t0 = performance.now(), tok = spS.token;
+      const step = now => {
+        if (tok !== spS.token){ return res(); }
+        const f = Math.min(1, (now - t0) / dur), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        tp.setAttribute('stroke-dashoffset', L * (1 - e));
+        if (f < 1) requestAnimationFrame(step);
+        else { fill.removeAttribute('mask'); mask.remove(); res(); }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  const spWait = ms => new Promise(r => setTimeout(r, ms));
+
+  /* 學習模式 */
+  async function spPlay(){
+    if (!spD || !spD.paths) return;
+    if (spS.idx >= spS.total){ spReset(); }
+    spS.playing = true; document.getElementById('spPlay').textContent = '⏸ 暫停';
+    const tok = spS.token;
+    while (spS.playing && spS.idx < spS.total && tok === spS.token){
+      await spStepForward(true);
+      if (tok !== spS.token) return;
+      await spWait(260);
+    }
+    spS.playing = false; document.getElementById('spPlay').textContent = spS.idx >= spS.total ? '↻ 重播' : '▶ 播放';
+  }
+  async function spStepForward(fromPlay){
+    if (!spD || spS.idx >= spS.total) return;
+    const i = spS.idx; spS.idx++;
+    spInfoUpdate();
+    const tmp = el('g', {}, spLayer.anim);
+    await spAnimateStroke(i, '#D9412B', tmp);
+    tmp.remove();
+    el('path', { d: spD.paths[i], fill: INK, 'data-i': i }, spLayer.done);
+    if (!fromPlay) spInfoUpdate();
+  }
+  function spReset(){
+    spS.token++; spS.playing = false; spS.idx = 0;
+    if (spLayer.done) spLayer.done.innerHTML = '';
+    if (spLayer.anim) spLayer.anim.innerHTML = '';
+    document.getElementById('spPlay').textContent = '▶ 播放';
+    spInfoUpdate();
+  }
+  document.getElementById('spPlay').addEventListener('click', () => {
+    if (spS.playing){ spS.playing = false; spS.token++; spLayer.anim && (spLayer.anim.innerHTML = '');
+      /* 暫停時把正在寫的那一筆補完 */
+      if (spLayer.done && spLayer.done.childNodes.length < spS.idx) el('path', { d: spD.paths[spS.idx - 1], fill: INK }, spLayer.done);
+      document.getElementById('spPlay').textContent = '▶ 播放'; return; }
+    spPlay();
+  });
+  document.getElementById('spNext').addEventListener('click', () => { if (spS.playing) return; spStepForward(false); });
+  document.getElementById('spPrev').addEventListener('click', () => {
+    if (spS.playing || spS.idx <= 0) return;
+    spS.idx--; const last = spLayer.done.lastChild; if (last) last.remove();
+    document.getElementById('spPlay').textContent = '▶ 播放'; spInfoUpdate();
+  });
+  document.getElementById('spReplay').addEventListener('click', () => { spReset(); setTimeout(spPlay, 150); });
+
+  /* 練習模式：判斷寫的這一筆對不對 */
+  function resamplePts(P, N){
+    if (P.length < 2) return Array(N).fill(P[0] || [0, 0]);
+    const cum = [0];
+    for (let i = 1; i < P.length; i++) cum.push(cum[i-1] + Math.hypot(P[i][0] - P[i-1][0], P[i][1] - P[i-1][1]));
+    const T = cum[cum.length - 1] || 1, out = [];
+    let j = 1;
+    for (let k = 0; k < N; k++){
+      const L = T * k / (N - 1);
+      while (j < P.length - 1 && cum[j] < L) j++;
+      const a = P[j-1], b = P[j], t = cum[j] - cum[j-1] > 0 ? (L - cum[j-1]) / (cum[j] - cum[j-1]) : 0;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+    return out;
+  }
+  const plen = P => P.reduce((a, q, i) => i ? a + Math.hypot(q[0] - P[i-1][0], q[1] - P[i-1][1]) : 0, 0);
+  function strokeScore(user, i){
+    const tr = (spD.tracks && spD.tracks[i]) || [];
+    if (tr.length < 1) return Infinity;
+    const D = spD.box.size, U = resamplePts(user, 24), E = resamplePts(tr.length > 1 ? tr : [tr[0], tr[0]], 24);
+    const el2 = plen(tr), ul = plen(user);
+    if (el2 < D * 0.16){   /* 點、短的筆畫：位置對、長度不要太長就算對 */
+      const cu = U[12], ce = E[12];
+      return (Math.hypot(cu[0] - ce[0], cu[1] - ce[1]) < D * 0.2 && ul < D * 0.45) ? 0.5 : Infinity;
+    }
+    const ds = Math.hypot(U[0][0] - E[0][0], U[0][1] - E[0][1]), de = Math.hypot(U[23][0] - E[23][0], U[23][1] - E[23][1]);
+    let avg = 0; for (let k = 0; k < 24; k++) avg += Math.hypot(U[k][0] - E[k][0], U[k][1] - E[k][1]); avg /= 24;
+    if (ds > D * 0.26 || de > D * 0.28 || avg > D * 0.17 || ul < el2 * 0.35) return Infinity;
+    return avg / D;
+  }
+  function spToData(ev){
+    const pt = spSvg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const v = pt.matrixTransform(spSvg.getScreenCTM().inverse());
+    return { v: [v.x, v.y], d: [(v.x - spF.ox) / spF.k, (v.y - spF.oy) / spF.k] };
+  }
+  spSvg.addEventListener('pointerdown', ev => {
+    if (spS.mode !== 'practice' || !spD || !spD.paths || spS.done) return;
+    ev.preventDefault(); spSvg.setPointerCapture(ev.pointerId);
+    const p = spToData(ev);
+    const path = el('path', { d: `M${n(p.v[0])} ${n(p.v[1])}`, fill: 'none', stroke: '#2F6FD6', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.85 }, spLayer.ink);
+    spS.drawing = { path, v: [p.v], d: [p.d] };
+  });
+  spSvg.addEventListener('pointermove', ev => {
+    const dr = spS.drawing; if (!dr) return;
+    ev.preventDefault();
+    const p = spToData(ev), last = dr.v[dr.v.length - 1];
+    if (Math.hypot(p.v[0] - last[0], p.v[1] - last[1]) < 0.6) return;
+    dr.v.push(p.v); dr.d.push(p.d);
+    dr.path.setAttribute('d', 'M' + dr.v.map(q => n(q[0]) + ' ' + n(q[1])).join('L'));
+  });
+  const spEnd = async () => {
+    const dr = spS.drawing; if (!dr) return; spS.drawing = null;
+    if (dr.d.length < 2) dr.d.push(dr.d[0]);
+    const i = spS.idx, score = strokeScore(dr.d, i);
+    if (score < Infinity){
+      dr.path.remove();
+      spLayer.hint.innerHTML = '';
+      spS.idx++; spS.missHere = 0;
+      spMsg.textContent = ['很棒！', '寫對了！', '好厲害！', '正確！'][i % 4]; spMsg.className = 'spmsg good';
+      el('path', { d: spD.paths[i], fill: INK }, spLayer.done);
+      if (spS.idx >= spS.total){ spFinish(); }
+      else spInfoUpdate();
+    } else {
+      spS.miss++; spS.missHere++;
+      let other = -1;
+      for (let j = spS.idx + 1; j < spS.total; j++) if (strokeScore(dr.d, j) < Infinity){ other = j; break; }
+      spMsg.textContent = other >= 0 ? `筆順不對喔！這一筆是第 ${other + 1} 筆，現在要先寫第 ${i + 1} 筆。` : (spS.missHere >= 2 ? '看一下提示，照著藍色的地方寫。' : '再試一次，注意起筆的位置和方向。');
+      spMsg.className = 'spmsg bad';
+      if (navigator.vibrate) try { navigator.vibrate(60); } catch(e){}
+      dr.path.setAttribute('stroke', '#D9412B');
+      setTimeout(() => dr.path.remove(), 450);
+      spInfoUpdate();
+      if (spS.missHere >= 2) spHint();
+    }
+  };
+  spSvg.addEventListener('pointerup', spEnd);
+  spSvg.addEventListener('pointercancel', spEnd);
+
+  /* 提示：把這一筆用淺藍色寫一次，標出起筆圓點 */
+  async function spHint(){
+    if (!spD || spS.idx >= spS.total) return;
+    const i = spS.idx; spLayer.hint.innerHTML = '';
+    const tr = (spD.tracks && spD.tracks[i]) || [];
+    await spAnimateStroke(i, '#9CC3F5', spLayer.hint, 900);
+    if (tr.length) el('circle', { cx: tr[0][0], cy: tr[0][1], r: spD.box.size * 0.035, fill: '#2F6FD6' }, spLayer.hint);
+  }
+  document.getElementById('spHintBtn').addEventListener('click', () => { spS.missHere = Math.max(spS.missHere, 2); spHint(); });
+  document.getElementById('spRestart').addEventListener('click', spSetup);
+  const spGuide = document.getElementById('spGuide');
+  spGuide.addEventListener('change', () => { spS.guide = spGuide.checked; if (spLayer.guide) spLayer.guide.style.display = spS.guide ? '' : 'none'; });
+
+  function spFinish(){
+    spS.done = true;
+    const stars = spS.miss === 0 ? 3 : spS.miss <= 2 ? 2 : 1;
+    spInfoUpdate();
+    const hasNext = spS.ci < spS.chars.length - 1;
+    spMsg.className = 'spmsg done';
+    spMsg.innerHTML = `<span class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</span>寫完了！錯了 ${spS.miss} 次。` +
+      `<button type="button" id="spAgain">再寫一次</button>` + (hasNext ? `<button type="button" id="spNextChar">下一個字</button>` : '');
+    document.getElementById('spAgain').onclick = spSetup;
+    if (hasNext) document.getElementById('spNextChar').onclick = () => { spS.ci++; spTabsRender(); spSetup(); };
+  }
+
+  document.getElementById('spClose').addEventListener('click', closePractice);
+  document.getElementById('spBtn').addEventListener('click', openPractice);
+  document.getElementById('mPractice').addEventListener('click', openPractice);
+  document.addEventListener('keydown', e => { if (!sp.hidden && e.key === 'Escape') closePractice(); });
+
+
 
   document.getElementById('printBtn').addEventListener('click', () => {
     if (pending().length) return guard(() => {})();
