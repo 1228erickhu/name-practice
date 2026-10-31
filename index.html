@@ -352,7 +352,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v14　2026-10-31 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v15　2026-10-31 更新</footer>
 <div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="筆順練習">
   <div class="spbar">
     <button type="button" id="spClose" class="spx" aria-label="關閉筆順練習">✕</button>
@@ -2175,25 +2175,32 @@ fieldset:disabled legend{opacity:.5}
   /* 一筆的動畫：用運筆軌跡當遮罩，把筆畫慢慢「寫」出來 */
   let maskSeq = 0;
   function spAnimateStroke(i, color, layer, ms){
+    /* 沿著運筆軌跡畫一條很粗的線，再用這一筆的外框「裁切」，線慢慢往前延伸，筆畫就會一點一點被填滿
+       （不用 mask：iPhone 的 Safari 遇到 mask 變化常常不會重畫，看起來就像一下子整筆出現） */
     return new Promise(res => {
       const p = spD.paths[i], tr = (spD.tracks && spD.tracks[i]) || [];
-      if (tr.length < 2){ el('path', { d: p, fill: color }, layer); return res(); }
-      const id = 'spm' + (++maskSeq);
-      const mask = el('mask', { id, maskUnits: 'userSpaceOnUse' }, layer);
-      const tp = el('path', { d: 'M' + tr.map(q => q[0] + ' ' + q[1]).join('L'), fill: 'none', stroke: '#fff',
-        'stroke-width': Math.max(220, spD.box.size * 0.13), 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mask);
+      const dur = ms || Math.min(4200, 900 * spS.speed);
+      const tok = spS.token, t0 = performance.now();
+      if (tr.length < 2){
+        const f = el('path', { d: p, fill: color, opacity: 0 }, layer);
+        const fade = now => { if (tok !== spS.token) return res(); const k = Math.min(1, (now - t0) / (dur * 0.6)); f.setAttribute('opacity', k); if (k < 1) requestAnimationFrame(fade); else res(); };
+        return requestAnimationFrame(fade);
+      }
+      const id = 'spc' + (++maskSeq);
+      const cp = el('clipPath', { id, clipPathUnits: 'userSpaceOnUse' }, layer);
+      el('path', { d: p }, cp);
+      const tp = el('path', { d: 'M' + tr.map(q => q[0] + ' ' + q[1]).join('L'), fill: 'none', stroke: color,
+        'stroke-width': Math.max(260, spD.box.size * 0.16), 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'clip-path': `url(#${id})` }, layer);
       const L = tp.getTotalLength ? tp.getTotalLength() : 1000;
-      tp.setAttribute('stroke-dasharray', `${L} ${L}`);
+      const D2 = ms || Math.min(4200, (650 + L * 0.85) * spS.speed);
+      tp.setAttribute('stroke-dasharray', `${L} ${L + 10}`);
       tp.setAttribute('stroke-dashoffset', L);
-      const fill = el('path', { d: p, fill: color, mask: `url(#${id})` }, layer);
-      const dur = ms || Math.min(4200, (650 + L * 0.85) * spS.speed);
-      const t0 = performance.now(), tok = spS.token;
       const step = now => {
         if (tok !== spS.token) return res();
-        const f = Math.min(1, (now - t0) / dur), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+        const f = Math.min(1, (now - t0) / D2), e = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
         tp.setAttribute('stroke-dashoffset', L * (1 - e));
         if (f < 1) requestAnimationFrame(step);
-        else { fill.removeAttribute('mask'); mask.remove(); res(); }
+        else { tp.remove(); cp.remove(); el('path', { d: p, fill: color }, layer); res(); }
       };
       requestAnimationFrame(step);
     });
