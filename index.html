@@ -185,6 +185,7 @@ fieldset:disabled legend{opacity:.5}
 .spctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
 .spctl[hidden]{display:none}
 .spctl button.pri,.spmsg button{background:var(--pencil);border-color:var(--pencil);color:var(--pencil-ink)}
+.spspeed span{padding:6px 10px}
 .spchk{display:flex;align-items:center;gap:6px;font-size:15px}
 .spchk input{width:20px;height:20px;accent-color:var(--pencil)}
 .print{appearance:none;border:0;border-radius:10px;background:var(--pencil);color:var(--pencil-ink);font:700 18px var(--sans);padding:14px;cursor:pointer;box-shadow:0 3px 0 #C79E1E}
@@ -344,7 +345,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v12　2026-10-31 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v13　2026-10-31 更新</footer>
 <div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="互動筆順練習">
   <div class="spbar">
     <div class="sptabs" id="spTabs"></div>
@@ -363,6 +364,11 @@ fieldset:disabled legend{opacity:.5}
       <button type="button" id="spPlay" class="pri">▶ 播放</button>
       <button type="button" id="spNext">下一筆 ▶</button>
       <button type="button" id="spReplay">↻ 重播</button>
+      <div class="seg spmode spspeed" role="group" aria-label="動畫速度">
+        <label><input type="radio" name="spSpeed" value="1.8" checked><span>慢</span></label>
+        <label><input type="radio" name="spSpeed" value="1.1"><span>中</span></label>
+        <label><input type="radio" name="spSpeed" value="0.6"><span>快</span></label>
+      </div>
     </div>
     <div class="spctl" id="spPracCtl" hidden>
       <label class="spchk"><input type="checkbox" id="spGuide" checked> 顯示淡色底字</label>
@@ -2079,7 +2085,7 @@ fieldset:disabled legend{opacity:.5}
   const sp = document.getElementById('sp'), spSvg = document.getElementById('spSvg');
   const spTabs = document.getElementById('spTabs'), spInfo = document.getElementById('spInfo'), spMsg = document.getElementById('spMsg');
   const spLearnCtl = document.getElementById('spLearnCtl'), spPracCtl = document.getElementById('spPracCtl');
-  const spS = { chars: [], ci: 0, mode: 'learn', idx: 0, playing: false, guide: true, miss: 0, missHere: 0, total: 0, token: 0, drawing: null, done: false };
+  const spS = { speed: 1.8, chars: [], ci: 0, mode: 'learn', idx: 0, playing: false, guide: true, miss: 0, missHere: 0, total: 0, token: 0, drawing: null, done: false };
   const el = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
   let spLayer = {}, spF = null, spD = null;
 
@@ -2098,6 +2104,27 @@ fieldset:disabled legend{opacity:.5}
     spTabs.innerHTML = spS.chars.map((c, i) => `<button type="button" class="sptab${i === spS.ci ? ' on' : ''}" data-i="${i}" aria-pressed="${i === spS.ci}">${esc(c)}</button>`).join('');
   }
   spTabs.addEventListener('click', e => { const b = e.target.closest('.sptab'); if (!b) return; spS.ci = +b.dataset.i; spTabsRender(); spSetup(); });
+  document.querySelectorAll('input[name="spSpeed"]').forEach(r => r.addEventListener('change', () => { if (r.checked) spS.speed = +r.value; }));
+  /* 筆順號碼：圓圈數字放在起筆的地方，顏色和這一筆一樣 */
+  function spBadge(i, layer){
+    const tr = (spD.tracks && spD.tracks[i]) || [];
+    if (!tr.length) return;
+    const R = spD.box.size * 0.05, col = PAL[i % PAL.length];
+    let bx = tr[0][0], by = tr[0][1];
+    if (tr.length > 1){
+      const dx = tr[1][0] - tr[0][0], dy = tr[1][1] - tr[0][1], L = Math.hypot(dx, dy) || 1;
+      bx -= dx / L * R * 1.25; by -= dy / L * R * 1.25;
+    }
+    /* 號碼和前面的號碼靠太近時，往旁邊移開，避免重疊 */
+    const prev = [...layer.querySelectorAll('circle')].map(c => [+c.getAttribute('cx'), +c.getAttribute('cy')]);
+    const base = [bx, by];
+    for (let t = 0; t < 12 && prev.some(q => Math.hypot(q[0] - bx, q[1] - by) < R * 2.2); t++){
+      const a = -Math.PI / 2 + t * Math.PI / 3, d = R * 2.3 * (1 + Math.floor(t / 6));
+      bx = base[0] + Math.cos(a) * d; by = base[1] + Math.sin(a) * d;
+    }
+    el('circle', { cx: bx, cy: by, r: R, fill: '#fff', stroke: col, 'stroke-width': R * 0.18 }, layer);
+    el('text', { x: bx, y: by + R * 0.05, 'font-size': R * (i + 1 >= 10 ? 1.15 : 1.4), 'font-weight': 700, 'font-family': KAI, fill: col, 'text-anchor': 'middle', 'dominant-baseline': 'central' }, layer).textContent = i + 1;
+  }
   document.querySelectorAll('input[name="spMode"]').forEach(r => r.addEventListener('change', () => { if (r.checked){ spS.mode = r.value; spSetup(); } }));
 
   /* 畫面：田字格、淡色底字、已完成的筆畫、動畫層、提示層、手寫層 */
@@ -2125,7 +2152,7 @@ fieldset:disabled legend{opacity:.5}
     spF = fit(spD, 0, 0, 100, 0.82);
     const g = el('g', { transform: `translate(${n(spF.ox)} ${n(spF.oy)}) scale(${spF.k.toFixed(6)})` }, spSvg);
     spLayer = {
-      guide: el('g', {}, g), done: el('g', {}, g), hint: el('g', {}, g), anim: el('g', {}, g),
+      guide: el('g', {}, g), done: el('g', {}, g), hint: el('g', {}, g), anim: el('g', {}, g), badges: el('g', {}, g),
       ink: el('g', {}, spSvg)
     };
     spD.paths.forEach(p => el('path', { d: p, fill: '#E3E7E5' }, spLayer.guide));
@@ -2136,7 +2163,7 @@ fieldset:disabled legend{opacity:.5}
   }
   function spInfoUpdate(){
     const c = spS.chars[spS.ci];
-    if (spS.mode === 'learn') spInfo.textContent = `「${c}」共 ${spS.total} 畫　　已寫到第 ${spS.idx} 筆`;
+    if (spS.mode === 'learn') spInfo.textContent = spS.idx ? `「${c}」共 ${spS.total} 畫　　第 ${spS.idx} 筆` : `「${c}」共 ${spS.total} 畫`;
     else spInfo.textContent = spS.done ? `「${c}」完成！` : `「${c}」請寫第 ${spS.idx + 1} 筆（共 ${spS.total} 畫）　錯誤 ${spS.miss} 次`;
   }
 
@@ -2154,7 +2181,7 @@ fieldset:disabled legend{opacity:.5}
       tp.setAttribute('stroke-dasharray', `${L} ${L}`);
       tp.setAttribute('stroke-dashoffset', L);
       const fill = el('path', { d: p, fill: color, mask: `url(#${id})` }, layer);
-      const dur = ms || Math.min(1400, 380 + L * 0.45);
+      const dur = ms || Math.min(4200, (650 + L * 0.85) * spS.speed);
       const t0 = performance.now(), tok = spS.token;
       const step = now => {
         if (tok !== spS.token){ return res(); }
@@ -2177,7 +2204,7 @@ fieldset:disabled legend{opacity:.5}
     while (spS.playing && spS.idx < spS.total && tok === spS.token){
       await spStepForward(true);
       if (tok !== spS.token) return;
-      await spWait(260);
+      await spWait(450 * spS.speed);
     }
     spS.playing = false; document.getElementById('spPlay').textContent = spS.idx >= spS.total ? '↻ 重播' : '▶ 播放';
   }
@@ -2185,23 +2212,25 @@ fieldset:disabled legend{opacity:.5}
     if (!spD || spS.idx >= spS.total) return;
     const i = spS.idx; spS.idx++;
     spInfoUpdate();
+    spBadge(i, spLayer.badges);
     const tmp = el('g', {}, spLayer.anim);
-    await spAnimateStroke(i, '#D9412B', tmp);
+    await spAnimateStroke(i, PAL[i % PAL.length], tmp);
     tmp.remove();
-    el('path', { d: spD.paths[i], fill: INK, 'data-i': i }, spLayer.done);
+    el('path', { d: spD.paths[i], fill: PAL[i % PAL.length], 'data-i': i }, spLayer.done);
     if (!fromPlay) spInfoUpdate();
   }
   function spReset(){
     spS.token++; spS.playing = false; spS.idx = 0;
     if (spLayer.done) spLayer.done.innerHTML = '';
     if (spLayer.anim) spLayer.anim.innerHTML = '';
+    if (spLayer.badges) spLayer.badges.innerHTML = '';
     document.getElementById('spPlay').textContent = '▶ 播放';
     spInfoUpdate();
   }
   document.getElementById('spPlay').addEventListener('click', () => {
     if (spS.playing){ spS.playing = false; spS.token++; spLayer.anim && (spLayer.anim.innerHTML = '');
       /* 暫停時把正在寫的那一筆補完 */
-      if (spLayer.done && spLayer.done.childNodes.length < spS.idx) el('path', { d: spD.paths[spS.idx - 1], fill: INK }, spLayer.done);
+      if (spLayer.done && spLayer.done.childNodes.length < spS.idx) el('path', { d: spD.paths[spS.idx - 1], fill: PAL[(spS.idx - 1) % PAL.length] }, spLayer.done);
       document.getElementById('spPlay').textContent = '▶ 播放'; return; }
     spPlay();
   });
@@ -2209,6 +2238,7 @@ fieldset:disabled legend{opacity:.5}
   document.getElementById('spPrev').addEventListener('click', () => {
     if (spS.playing || spS.idx <= 0) return;
     spS.idx--; const last = spLayer.done.lastChild; if (last) last.remove();
+    const bl = spLayer.badges; if (bl && bl.lastChild){ bl.lastChild.remove(); if (bl.lastChild) bl.lastChild.remove(); }
     document.getElementById('spPlay').textContent = '▶ 播放'; spInfoUpdate();
   });
   document.getElementById('spReplay').addEventListener('click', () => { spReset(); setTimeout(spPlay, 150); });
@@ -2272,7 +2302,8 @@ fieldset:disabled legend{opacity:.5}
       spLayer.hint.innerHTML = '';
       spS.idx++; spS.missHere = 0;
       spMsg.textContent = ['很棒！', '寫對了！', '好厲害！', '正確！'][i % 4]; spMsg.className = 'spmsg good';
-      el('path', { d: spD.paths[i], fill: INK }, spLayer.done);
+      el('path', { d: spD.paths[i], fill: PAL[i % PAL.length] }, spLayer.done);
+      spBadge(i, spLayer.badges);
       if (spS.idx >= spS.total){ spFinish(); }
       else spInfoUpdate();
     } else {
