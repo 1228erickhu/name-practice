@@ -355,7 +355,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v16　2026-11-04 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v17　2026-11-04 更新</footer>
 <div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="筆順練習">
   <div class="spbar">
     <button type="button" id="spClose" class="spx" aria-label="關閉筆順練習">✕</button>
@@ -1090,12 +1090,15 @@ fieldset:disabled legend{opacity:.5}
       const pts = dedupe(tr.map(([a, b]) => [F.ox + a * k, F.oy + b * k]), 0.4);
       let ux = 0, uy = 0;
       if (pts.length >= 2){
-        const sm = smoothTrack(pts);
+        /* 比照「筆順練習」：虛線沿著筆畫中間走，並裁切在這一筆的外框裡，不會超出字 */
+        const sm = guideLine(pts, d.paths[i], F, 0.6);
         guides[i] = flattenPath(sm.d)[0] || pts;
-        g += `<path d="${sm.d}" fill="none" stroke="${blue}" stroke-width="0.4" stroke-dasharray="0.45 0.85" stroke-linecap="round"/>`;
-        const e = pts[pts.length - 1], vx = sm.ex, vy = sm.ey, h = Math.max(1.4, S * 0.035), w = h * 0.8, px = -vy, py = vx;
-        const tip = [e[0] + vx * h * 0.35, e[1] + vy * h * 0.35], bc = [e[0] - vx * h * 0.65, e[1] - vy * h * 0.65];
-        g += `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${blue}"/>`;
+        const e = sm.end, vx = sm.ex, vy = sm.ey, px = -vy, py = vx;
+        const w = Math.max(0.9, Math.min(Math.max(1.4, S * 0.035) * 0.8, sm.half * 1.7)), h = w * 1.25;
+        const tip = [e[0] - vx * h * 0.15, e[1] - vy * h * 0.15], bc = [tip[0] - vx * h, tip[1] - vy * h];
+        g += clipOpen(d.paths[i], F) +
+          `<path d="${sm.d}" fill="none" stroke="${blue}" stroke-width="0.4" stroke-dasharray="0.45 0.85" stroke-linecap="round"/>` +
+          `<path d="M${n(tip[0])} ${n(tip[1])}L${n(bc[0] + px*w/2)} ${n(bc[1] + py*w/2)}L${n(bc[0] - px*w/2)} ${n(bc[1] - py*w/2)}Z" fill="${blue}"/></g>`;
         let q = 1;
         while (q < pts.length - 1 && Math.hypot(pts[q][0] - pts[0][0], pts[q][1] - pts[0][1]) < 0.5) q++;
         ux = pts[q][0] - pts[0][0]; uy = pts[q][1] - pts[0][1];
