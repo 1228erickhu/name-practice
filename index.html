@@ -355,7 +355,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v18　2026-11-04 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v19　2026-11-04 更新</footer>
 <div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="筆順練習">
   <div class="spbar">
     <button type="button" id="spClose" class="spx" aria-label="關閉筆順練習">✕</button>
@@ -1087,8 +1087,8 @@ fieldset:disabled legend{opacity:.5}
     d.paths.forEach((_, i) => {
       const tr0 = (d.tracks && d.tracks[i]) || [];
       if (!tr0.length) return;
-      /* 比照「筆順練習」：照教育部運筆路線順順地走，只把頭尾修進這一筆裡面 */
-      const tr = tr0.length >= 2 ? trimTrack(tr0, d.paths[i]) : tr0;
+      /* 比照「筆順練習」：完整照教育部運筆路線走（勾的尖端也保留），跑出去的點下面會推回筆畫裡 */
+      const tr = tr0;
       let pts = dedupe(tr.map(([a, b]) => [F.ox + a * k, F.oy + b * k]), 0.4);
       /* 貼邊或稍微出界的運筆點，輕輕推回筆畫裡面（只動原本的少數幾個點，線條保持順暢） */
       try {
@@ -1099,15 +1099,30 @@ fieldset:disabled legend{opacity:.5}
       if (pts.length >= 2){
         const sm = smoothTrack(pts);
         guides[i] = flattenPath(sm.d)[0] || pts;
-        const e = pts[pts.length - 1], vx = sm.ex, vy = sm.ey, px = -vy, py = vx;
-        /* 箭頭不比筆畫寬：量終點處這一筆的寬度 */
-        let half = 9;
+        /* 箭頭：從終點沿著線往回找筆畫夠寬的地方放（勾的尖端很細，放在尖端會太小看不到），方向跟著線走 */
+        const wMax = Math.max(1.4, S * 0.035) * 0.8;
+        let e = pts[pts.length - 1], vx = sm.ex, vy = sm.ey, w = wMax;
         try {
           const polys = flattenPath(d.paths[i]).map(P => P.map(([a, b]) => [F.ox + a * k, F.oy + b * k]));
-          const ray = (sx, sy) => { let t = 0; for (let st = 0.06; st < 8; st += 0.06){ if (pointIn(polys, e[0] + sx * st, e[1] + sy * st)) t = st; else break; } return t; };
-          if (pointIn(polys, e[0], e[1])) half = (ray(px, py) + ray(-px, -py)) / 2;
+          const G = resample(guides[i], 0.15);
+          const halfAt = (q, ux, uy) => {
+            if (!pointIn(polys, q[0], q[1])) return 0;
+            const ray = (sx, sy) => { let t = 0; for (let st = 0.05; st < 8; st += 0.05){ if (pointIn(polys, q[0] + sx * st, q[1] + sy * st)) t = st; else break; } return t; };
+            return Math.min(ray(-uy, ux), ray(uy, -ux));
+          };
+          let best = null, back = 0;
+          for (let j = G.length - 1; j > 0 && back < wMax * 2.2; j--){
+            const a = G[j - 1], b = G[j], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1e-9;
+            const ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, hw = halfAt(b, ux, uy);
+            const cand = { e: b, vx: ux, vy: uy, w: Math.min(wMax, hw * 1.8) };
+            if (!best || cand.w > best.w + 0.05) best = cand;
+            if (cand.w >= wMax * 0.95) break;
+            back += L;
+          }
+          if (best && best.w > 0){ e = best.e; vx = best.vx; vy = best.vy; w = best.w; }
         } catch(err){}
-        const w = Math.max(0.9, Math.min(Math.max(1.4, S * 0.035) * 0.8, half * 1.7)), h = w * 1.25;
+        w = Math.max(0.9, w);
+        const px = -vy, py = vx, h = w * 1.25;
         const tip = [e[0] - vx * h * 0.15, e[1] - vy * h * 0.15], bc = [tip[0] - vx * h, tip[1] - vy * h];
         g += clipOpen(d.paths[i], F) +
           `<path d="${sm.d}" fill="none" stroke="${blue}" stroke-width="0.4" stroke-dasharray="0.45 0.85" stroke-linecap="round"/>` +
