@@ -166,7 +166,7 @@ fieldset:disabled legend{opacity:.5}
   .mbar button.pri{background:var(--pencil);border-color:var(--pencil);color:var(--pencil-ink)}
   body.has-mbar{padding-bottom:80px}
 }
-.sp{position:fixed;inset:0;z-index:60;background:#FBF7F4;color:#3B3333;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.sp{--sp-text:#7A6C68;--sp-text2:#5A4E4A;--sp-strong:#3B3333;--sp-big:#3B3333;--sp-big-ink:#fff;position:fixed;inset:0;z-index:60;background:var(--desk);color:#3B3333;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 .spbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #EADFD9;background:#fff}
 .spx{appearance:none;width:40px;height:40px;border-radius:50%;border:1px solid #DCCFC9;background:#fff;color:#3B3333;font:600 18px var(--sans);cursor:pointer}
 .spttl{font:700 18px var(--sans)}
@@ -179,22 +179,25 @@ fieldset:disabled legend{opacity:.5}
 .spmain{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px 24px;width:100%;max-width:560px;margin:0 auto}
 .sphead{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .spcard svg{display:block;height:76px;width:auto}
-.spcount{text-align:right;font-size:15px;color:#7A6C68;line-height:1.5}
-.spcount b{font-size:20px;color:#3B3333}
+.spcount{text-align:right;font-size:15px;color:var(--sp-text);line-height:1.5}
+.spcount b{font-size:20px;color:var(--sp-strong)}
 .spmsg{border-radius:10px;padding:10px 12px;font-size:16px;font-weight:600;line-height:1.5;background:#F4EEEA;color:#5A4E4A;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .spmsg.bad{background:#FDE8DB;color:#C2410C}
 .spmsg.good{background:#E3F3E6;color:#2F7A44}
 .spmsg .stars{font-size:24px;color:#E8A317;letter-spacing:2px}
 #spSvg{display:block;width:100%;max-width:min(520px,calc(100dvh - 330px));min-width:240px;margin:0 auto;aspect-ratio:1;height:auto;touch-action:none;background:#FFFCFA;border-radius:8px;user-select:none;-webkit-user-select:none}
 .spbig,.spsub,.sprow button{appearance:none;font:600 16px var(--sans);padding:12px;border-radius:999px;cursor:pointer}
-.spbig{background:#3B3333;color:#fff;border:0}
+.spbig{background:var(--sp-big);color:var(--sp-big-ink);border:0}
 .spsub,.sprow button{background:#fff;color:#3B3333;border:1.5px solid #3B3333}
 .sprow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sprow button:disabled{opacity:.35;cursor:not-allowed}
 .spbig:focus-visible,.spsub:focus-visible,.sprow button:focus-visible,.spx:focus-visible{outline:3px solid #F0A04B;outline-offset:2px}
-.spchk{display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;color:#5A4E4A}
+.spchk{display:flex;align-items:center;justify-content:center;gap:6px;font-size:15px;color:var(--sp-text2)}
 .spchk input{width:20px;height:20px;accent-color:#3B3333}
 .sp-open[hidden],#mPractice[hidden]{display:none!important}
+/* 筆順練習頁跟主頁一樣：深色模式時背景變深，背景上的字和大按鈕改淺色 */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sp{--sp-text:#9AABA2;--sp-text2:#9AABA2;--sp-strong:#E4EDE8;--sp-big:#6CC596;--sp-big-ink:#101814}}
+:root[data-theme="dark"] .sp{--sp-text:#9AABA2;--sp-text2:#9AABA2;--sp-strong:#E4EDE8;--sp-big:#6CC596;--sp-big-ink:#101814}
 .print{appearance:none;border:0;border-radius:10px;background:var(--pencil);color:var(--pencil-ink);font:700 18px var(--sans);padding:14px;cursor:pointer;box-shadow:0 3px 0 #C79E1E}
 .print:hover{filter:brightness(1.04)}
 .print:active{transform:translateY(2px);box-shadow:0 1px 0 #C79E1E}
@@ -352,7 +355,7 @@ fieldset:disabled legend{opacity:.5}
 
   <section class="preview" id="preview" aria-label="預覽"></section>
 </main>
-<footer class="ver" id="verFooter">寫名字練習紙　版本 v15　2026-10-31 更新</footer>
+<footer class="ver" id="verFooter">寫名字練習紙　版本 v16　2026-11-04 更新</footer>
 <div class="sp" id="sp" hidden role="dialog" aria-modal="true" aria-label="筆順練習">
   <div class="spbar">
     <button type="button" id="spClose" class="spx" aria-label="關閉筆順練習">✕</button>
